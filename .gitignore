@@ -127,3 +127,7 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# Custom
+/src/constants/filesystem.py
+/src/constants/graphing_old.py
