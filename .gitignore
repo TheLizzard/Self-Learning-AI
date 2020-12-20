@@ -133,4 +133,3 @@ dmypy.json
 /src/constants/graphing_old.py
 /src/full_tests.tst
 /src/tests.tst
-/src/tmp/*
