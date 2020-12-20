@@ -20,7 +20,7 @@ dropout(rate: float, noise_shape=None, seed=None)
 
 zero_padding(padding_size={padding_size})
 
-split(loc: tuple<ints>, target_dim: int)
+split(sizes: tuple<ints>, target_dim: int)
 
 reshape(shape: tuple<ints>)
 
@@ -258,7 +258,7 @@ reshape
     size (tuple<ints>)             How to reshape the tensor
 
 split
-    loc (tuple<ints>)              Where to split.
+    sizes (tuple<ints>)            The sizes of the tensors after the split. So split(loc=(2, 1))([14, 15, 16]) => [14, 15], [16]
     target_dim (int)               The dimention in which we are splitting
 
 dense
@@ -448,8 +448,6 @@ class AICore:
             assert isinstance(input_layer, list), "Internal Error."
             input_layers = input_layer
             for i, split in enumerate(this):
-                # split is like its own neural network model (a 
-                # list of dictionaries)
                 for layer in split:
                     input_layers[i] = self.add_layer(input_layers[i], layer)
             return input_layers
@@ -523,9 +521,9 @@ class AICore:
     def add_reshape(self, input_layer, shape):
         return Reshape(shape)(input_layer)
 
-    def add_split(self, input_layer, loc, target_dim):
-        layer = SplitLayer(loc=loc, target_dim=target_dim)(input_layer)
-        return layer
+    def add_split(self, input_layer, sizes, target_dim):
+        branches = SplitLayer(sizes=sizes, target_dim=target_dim)(input_layer)
+        return branches
 
     def add_duplicate(self, input_layer):
         return DuplicateLayer()(input_layer)

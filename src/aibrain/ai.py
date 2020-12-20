@@ -24,6 +24,10 @@ class AI:
     def predict(self, questions):
         return self.AI.predict(questions)
 
+    def predict_single(self, question):
+        answers = self.AI.predict([question])
+        return tuple(answer.tolist()[0] for answer in answers)
+
     def deepcopy(self):
         return copy.deepcopy(self)
 

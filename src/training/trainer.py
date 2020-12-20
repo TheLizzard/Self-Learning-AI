@@ -1,10 +1,17 @@
 # -*- coding: utf-8 -*-
 import tkinter as tk
 import pickle
+import random
 import copy
 import sys
 
 from board.alphabeta import alphabeta_values
+
+
+with open("tests.tst", "rb") as file:
+    test_dataset = pickle.loads(file.read())
+test_dataset_list = list(test_dataset.items())
+del test_dataset
 
 
 class Trainer:
@@ -15,10 +22,18 @@ class Trainer:
         self.reset()
 
     def full_test(self):
-        with open("tests.tst", "rb") as file:
-            test_values_dataset = pickle.loads(file.read())
+        global test_dataset_list
         error = 0
-        for case, correct_value in test_values_dataset.items():
+        for case, correct_value in test_dataset_list:
+            error += self.test_value_case(case, correct_value)
+        print(error)
+
+    def test(self, sample_size=1000):
+        global test_dataset_list
+        error = 0
+        samples = random.sample(test_dataset_list, sample_size)
+        for sample in samples:
+            case, correct_value = sample
             error += self.test_value_case(case, correct_value)
         print(error)
 
@@ -33,6 +48,7 @@ class Trainer:
         while not self.environment.over:
             amplified_v, amplified_p = self.amplify(self.AI, self.current_environment)
             env = self.normalise_environment(self.current_environment)
+            amplified_v = self.normalise_value(self.current_environment, amplified_v)
             self.training_data.append((env, amplified_p, amplified_v))
             action = self.current_environment.random_action_from_policy(amplified_p)
             self.current_environment.act(action)
@@ -63,15 +79,8 @@ class Trainer:
         return amplified_v, amplified_p
 
     def ask_ai(self, environment):
-        policy, value = self.AI.predict([self.normalise_environment(environment)])
-        print(type(policy), type(value))
-        print(policy, value)
-        policy = policy.tolist()
-        value = value.tolist()
-        print(policy, value)
-        if len(value) == 0:
-            raise ValueError("Why is the predicted value=[]. It should be in the form [float32] not empty.")
-        return value, policy
+        policy, value = self.AI.predict_single(self.normalise_environment(environment))
+        return self.normalise_value(environment, value[0]), policy
 
     def ask_ai_value(self, environment):
-        return self.normalise_value(environment, self.ask_ai(environment)[0])
+        return self.ask_ai(environment)[0]
