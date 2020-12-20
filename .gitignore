@@ -131,3 +131,4 @@ dmypy.json
 # Custom
 /src/constants/filesystem.py
 /src/constants/graphing_old.py
+/src/full_tests.tst
