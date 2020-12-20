@@ -304,12 +304,12 @@ optimisations = {"layout_optimizer": True,
                  "min_graph_nodes": 0}
 tf.config.optimizer.set_experimental_options(optimisations)
 
-from keras.models import Model, load_model
 from keras.layers import Dense, Conv2D, Conv3D, Flatten, Input, Activation
 from keras.layers import Reshape, MaxPool3D, ZeroPadding2D, Dropout
 from keras.layers import Concatenate, GaussianNoise, MaxPool2D
-from keras.optimizers import Adam
+from keras.models import Model, load_model
 from keras.utils import plot_model
+from keras.optimizers import Adam
 
 import numpy as np
 import tempfile
@@ -547,19 +547,18 @@ class AICore:
 
     def train(self, questions, answers, workers=5,
               use_multiprocessing=True, **kwargs):
-        if not isinstance(questions, np.ndarray):
-            questions = np.asarray(questions)
+        questions = np.asarray(questions)
+        answers = np.asarray(answers)
         return self.model.fit(questions, answers, workers=workers, **kwargs,
                               use_multiprocessing=use_multiprocessing)
 
     def predict(self, questions):
-        if not isinstance(questions, np.ndarray):
-            questions = np.asarray(questions)
+        questions = np.asarray(questions)
         return self.model.predict(questions, use_multiprocessing=True)
 
     def evaluate(self, questions, answers, **kwargs):
-        if not isinstance(questions, np.ndarray):
-            questions = np.asarray(questions)
+        questions = np.asarray(questions)
+        answers = np.asarray(answers)
         return self.model.evaluate(questions, answers, **kwargs)
 
     def deepcopy(self):

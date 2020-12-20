@@ -1,42 +1,22 @@
 # -*- coding: utf-8 -*-
-def alphabeta_move(node, depth, eval, α=float("-inf"), β=float("inf")):
-    if depth == 0:
-        return eval(node)
-    elif node.game_over:
+def alphabeta_values(node, depth, eval):
+    values = []
+    if node.game_over:
         if node.winner is None:
             return 0
-        elif node.winner is True:
-            return 1
-        elif node.winner is False:
-            return -1
+        else:
+            return node.winner*2-1
     elif node.player:
-        value = float("-inf")
-        best_move = None
         for move in node.legal_moves:
             node.push(move)
-            new_value = alphabeta(node, depth-1, eval, α, β)
-            if new_value > value:
-                value = new_value
-                best_move = move
+            values.append(alphabeta(node, depth-1, eval))
             node.pop()
-            α = max(α, value)
-            if α >= β:
-                break
-        return value, best_move
     else:
-        value = float("inf")
-        best_move = None
         for move in node.legal_moves:
             node.push(move)
-            new_value = alphabeta(node, depth-1, eval, α, β)
-            if new_value < value:
-                value = new_value
-                best_move = move
+            values.append(alphabeta(node, depth-1, eval))
             node.pop()
-            β = min(β, value)
-            if α >= β:
-                break
-        return value, best_move
+    return values
 
 def alphabeta(node, depth, eval, α=float("-inf"), β=float("inf")):
     if depth == 0:
@@ -44,10 +24,8 @@ def alphabeta(node, depth, eval, α=float("-inf"), β=float("inf")):
     elif node.game_over:
         if node.winner is None:
             return 0
-        elif node.winner is True:
-            return 1
-        elif node.winner is False:
-            return -1
+        else:
+            return node.winner*2-1
     elif node.player:
         value = float("-inf")
         for move in node.legal_moves:
@@ -78,7 +56,8 @@ if __name__ == "__main__":
 
     board = TicTacToe()
     while not board.game_over:
-        result = alphabeta_move(board, 20, eval)
+        result = alphabeta_values(board, 20, eval)
+        print(tuple(board.legal_moves))
         print(board, board.player, result, sep="\t")
         _in = input("? ")
         if _in.isdigit():

@@ -12,7 +12,7 @@ class AI:
         self.AI = AICore(model, **kwargs)
 
     def train(self, questions, answers, verbose=0, **kwargs):
-        history = self.AI.train(np.asarray(question), np.asarray(answer),
+        history = self.AI.train(np.asarray(questions), np.asarray(answers),
                                 verbose=verbose, **kwargs)
         return history.history
 
@@ -22,10 +22,7 @@ class AI:
         return {key: value[0] for key, value in history.items()}
 
     def predict(self, questions):
-        return self.AI.predict(np.asarray(questions)).tolist()
-
-    def predict_single(self, question):
-        return self.predict(np.asarray([question]))[0]
+        return self.AI.predict(questions)
 
     def deepcopy(self):
         return copy.deepcopy(self)

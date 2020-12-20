@@ -26,6 +26,7 @@ IDX_TO_MOVE = {value: key for key, value in MOVE_TO_IDX.items()}
 
 
 class TicTacToeState:
+    __slots__ = ("board", "player", "winner", "game_over")
     def __init__(self, board=[0 for i in range(9)], player=True):
         self.board = board
         self.player = player
@@ -52,7 +53,8 @@ class TicTacToeState:
         self.board[key] = value
 
     def deepcopy(self):
-        return copy.deepcopy(self)
+        raise Exception("Why would you deepcopy an immutable object?")
+        return TicTacToeState(self.copy_list(self.board), self.player)
 
     @property
     def legal_moves(self):
@@ -168,7 +170,7 @@ class TicTacToe:
         """
         Returns a random move (all moves have equal weights)
         """
-        available_moves = tuple(self.legal_moves())
+        available_moves = tuple(self.legal_moves)
         return available_moves[randint(0, len(available_moves)-1)]
 
     def deepcopy(self):
