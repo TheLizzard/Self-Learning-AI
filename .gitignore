@@ -129,7 +129,7 @@ dmypy.json
 .pyre/
 
 # Custom
-/src/constants/filesystem.py
-/src/constants/graphing_old.py
-*.tst
+src/constants/filesystem.py
+src/constants/graphing_old.py
 src/tests.tst
+*.tst
