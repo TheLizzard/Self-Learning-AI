@@ -21,12 +21,12 @@ if __name__ == "__main__":
     policy = [{"type": "dense", "size": 250},
               {"type": "dense", "size": 50},
               {"type": "dense", "size": 9},
-              {"type": "softmax"}]
+              {"type": "softmax", "name": "policy"}]
 
     value = [{"type": "dense", "size": 250},
              {"type": "dense", "size": 75},
              {"type": "dense", "size": 10},
-             {"type": "dense", "size": 1, "activation": "tanh"}]
+             {"type": "dense", "size": 1, "activation": "tanh", "name": "value"}]
 
     model = [{"type": "input", "shape": (3, 3, 3)},
              {"type": "duplicate"},
@@ -36,16 +36,24 @@ if __name__ == "__main__":
              {"type": "split", "sizes": (250, 250), "target_dim": 1},
              [policy, value]]
 
-    def loss_function(true, pred):
-        p_true, v_true = true
-        p_pred, v_pred = pred
-        return tf.reduce_sum(tf.pow(v_true-v_pred,2)) - tf.nn.softmax_cross_entropy_with_logits(p_pred, p_true)
+    @tf.function
+    def loss_function_value(true, pred):
+        return tf.reduce_sum(tf.pow(true-pred, 2))
 
-    core = AI(model, loss=loss_function, learning_rate=0.000001, ask_verify=False)
+    @tf.function
+    def loss_function_policy(true, pred):
+        return tf.math.negative(tf.nn.softmax_cross_entropy_with_logits(pred, true))
+
+    loss_dict = {"value": loss_function_value,
+                 "policy": loss_function_policy}
+
+    core = AI(model, loss=loss_dict, learning_rate=0.001, ask_verify=True)
     trainer = Trainer(Environment, core)
 
     for i in range(100):
-        for epoch in range(100000):
+        for epoch in range(10):
             trainer.train()
             trainer.flush()
+            print("Done 1 more.")
+            input(">>> ")
         trainer.test()

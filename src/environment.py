@@ -45,7 +45,11 @@ class Environment(TicTacToe):
         return [xs, os, ns]
     
     def random_action_from_policy(self, probability_distribution):
-        choice(tuple(self.legal_actions), 1, p=probability_distribution)
+        # We normalised the `probability_distribution` to make sure it has
+        # 9 elements so we can use the full `all_actions`
+        all_actions = (7, 8, 9, 4, 5, 6, 1, 2, 3)
+        probability_distribution = self.normalise_distribution(probability_distribution)
+        return choice(all_actions, 1, p=probability_distribution).tolist()[0]
 
     def deepcopy(self):
         global WARNED_DEEPCOPY
@@ -53,3 +57,7 @@ class Environment(TicTacToe):
             WARNED_DEEPCOPY = True
             warnings.warn("This is a very slow method!")
         return copy.deepcopy(self)
+
+    def normalise_distribution(self, distribution):
+        _sum = sum(distribution)
+        return [i/_sum for i in distribution]

@@ -11,21 +11,19 @@ class AI:
     def __init__(self, model, **kwargs):
         self.AI = AICore(model, **kwargs)
 
-    def train(self, questions, answers, verbose=0, **kwargs):
-        history = self.AI.train(np.asarray(questions), np.asarray(answers),
-                                verbose=verbose, **kwargs)
+    def train(self, questions, answers=None, verbose=0, **kwargs):
+        history = self.AI.train(questions, answers, verbose=verbose, **kwargs)
         return history.history
 
     def train_single(self, question, answer, verbose=0, **kwargs):
-        history = self.train(np.asarray([question]), np.asarray([answer]),
-                             verbose=verbose, **kwargs)
+        history = self.train([question], [answer], verbose=verbose, **kwargs)
         return {key: value[0] for key, value in history.items()}
 
     def predict(self, questions):
         return self.AI.predict(questions)
 
     def predict_single(self, question):
-        answers = self.AI.predict([question])
+        answers = self.AI.predict(np.asarray([question]))
         return tuple(answer.tolist()[0] for answer in answers)
 
     def deepcopy(self):

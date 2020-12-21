@@ -437,8 +437,7 @@ class AICore:
             last_layer = self.add_layer(last_layer, layer)
 
         kwargs = {"optimizer": self.optimizer,
-                  "loss": self.loss,
-                  "metrics": ["accuracy"]}
+                  "loss": self.loss}
         self.model = Model(inputs=input_layer, outputs=last_layer)
         self.model.compile(**kwargs)
         self.model.build(input_shape=input_shape)
@@ -471,7 +470,7 @@ class AICore:
         elif layer_type == "dense":
             return self.add_dense_layer(input_layer, **this)
         elif layer_type == "flatten":
-            return self.add_flatten(input_layer)
+            return self.add_flatten(input_layer, **this)
         elif layer_type == "split":
             return self.add_split(input_layer, **this)
         elif (layer_type == "reshape") or (layer_type == "resize"):
@@ -479,7 +478,7 @@ class AICore:
         elif layer_type == "activation":
             return self.add_activation(input_layer, **this)
         elif layer_type == "softmax":
-            return self.add_softmax(input_layer)
+            return self.add_softmax(input_layer, **this)
         elif type == "gaussian_noise":
             return self.add_gaussian_noise(input_layer, **this)
         elif layer_type == "duplicate":
@@ -490,36 +489,29 @@ class AICore:
             msg = "This layer hasn't been implemented: "+str(layer_type)
             raise NotImplementedError(msg)
 
-    def add_dropout_layer(self, input_layer, rate, noise_shape=None, seed=None):
-        return Dropout(rate, noise_shape=noise_shape, seed=seed)(input_layer)
+    def add_dropout_layer(self, input_layer, rate, noise_shape=None, seed=None, name=None):
+        return Dropout(rate, noise_shape=noise_shape, seed=seed, name=name)(input_layer)
 
-    def add_dense_layer(self, input_layer, size,
-                      activation="selu", use_bias=True):
-        return Dense(units=size, activation=activation, use_bias=use_bias)(input_layer)
+    def add_dense_layer(self, input_layer, size, activation="selu", use_bias=True, name=None):
+        return Dense(units=size, activation=activation, use_bias=use_bias, name=name)(input_layer)
 
-    def add_conv_layer(self, input_layer, filter, filters=1, use_bias=True,
-                         strides=1, padding="valid", activation="selu"):
-        return Conv2D(kernel_size=filter, filters=filters, strides=strides,
-                      activation=activation, padding=padding)(input_layer)
+    def add_conv_layer(self, input_layer, filter, filters=1, use_bias=True, strides=1, padding="valid", activation="selu", name=None):
+        return Conv2D(kernel_size=filter, filters=filters, strides=strides, activation=activation, padding=padding, name=name)(input_layer)
 
-    def add_conv3d_layer(self, input_layer, filter, filters=1, use_bias=True,
-                         strides=1, padding="valid", activation="selu"):
-        return Conv3D(kernel_size=filter, filters=filters, strides=strides,
-                      activation=activation, padding=padding)(input_layer)
+    def add_conv3d_layer(self, input_layer, filter, filters=1, use_bias=True, strides=1, padding="valid", activation="selu", name=None):
+        return Conv3D(kernel_size=filter, filters=filters, strides=strides, activation=activation, padding=padding, name=name)(input_layer)
 
-    def add_pool(self, input_layer, filter, strides=None, padding="valid"):
-        return MaxPool2D(pool_size=filter, strides=strides,
-                         padding=padding)(input_layer)
+    def add_pool(self, input_layer, filter, strides=None, padding="valid", name=None):
+        return MaxPool2D(pool_size=filter, strides=strides, padding=padding, name=name)(input_layer)
 
-    def add_pool3d(self, input_layer, filter, strides=None, padding="valid"):
-        return MaxPool3D(pool_size=filter, strides=strides,
-                         padding=padding)(input_layer)
+    def add_pool3d(self, input_layer, filter, strides=None, padding="valid", name=None):
+        return MaxPool3D(pool_size=filter, strides=strides, padding=padding, name=name)(input_layer)
 
-    def add_flatten(self, input_layer):
-        return Flatten()(input_layer)
+    def add_flatten(self, input_layer, name=None):
+        return Flatten(name=name)(input_layer)
 
-    def add_reshape(self, input_layer, shape):
-        return Reshape(shape)(input_layer)
+    def add_reshape(self, input_layer, shape, name=None):
+        return Reshape(shape, name=name)(input_layer)
 
     def add_split(self, input_layer, sizes, target_dim):
         branches = SplitLayer(sizes=sizes, target_dim=target_dim)(input_layer)
@@ -531,32 +523,26 @@ class AICore:
     def add_merge(self, sub_layers):
         return Concatenate()(sub_layers)
 
-    def add_gaussian_noise(self, input_layer, noise=0.01):
-        return GaussianNoise(noise=noise)(input_layer)
+    def add_gaussian_noise(self, input_layer, noise=0.01, name=None):
+        return GaussianNoise(noise=noise, name=name)(input_layer)
 
-    def add_activation(self, input_layer, function):
-        return Activation(activation=function)(input_layer)
+    def add_activation(self, input_layer, function, name=None):
+        return Activation(activation=function, name=name)(input_layer)
 
-    def add_softmax(self, input_layer):
-        return self.add_activation(input_layer, function="softmax")
+    def add_softmax(self, input_layer, name=None):
+        return self.add_activation(input_layer, function="softmax", name=name)
 
-    def add_zero_padding(self, input_layer, padding_size=None):
-        return ZeroPadding2D(padding=padding_size)(input_layer)
+    def add_zero_padding(self, input_layer, padding_size=None, name=None):
+        return ZeroPadding2D(padding=padding_size, name=name)(input_layer)
 
-    def train(self, questions, answers, workers=5,
-              use_multiprocessing=True, **kwargs):
-        questions = np.asarray(questions)
-        answers = np.asarray(answers)
+    def train(self, questions, answers=None, workers=5, use_multiprocessing=True, **kwargs):
         return self.model.fit(questions, answers, workers=workers, **kwargs,
                               use_multiprocessing=use_multiprocessing)
 
     def predict(self, questions):
-        questions = np.asarray(questions)
         return self.model.predict(questions, use_multiprocessing=True)
 
     def evaluate(self, questions, answers, **kwargs):
-        questions = np.asarray(questions)
-        answers = np.asarray(answers)
         return self.model.evaluate(questions, answers, **kwargs)
 
     def deepcopy(self):

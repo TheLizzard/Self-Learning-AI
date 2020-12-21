@@ -54,7 +54,6 @@ class TicTacToeState:
 
     def deepcopy(self):
         raise Exception("Why would you deepcopy an immutable object?")
-        return TicTacToeState(self.copy_list(self.board), self.player)
 
     @property
     def legal_moves(self):
