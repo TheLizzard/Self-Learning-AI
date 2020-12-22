@@ -38,10 +38,10 @@ class SplitLayer(Layer):
         return branches
 
     def compute_output_shape(self, input_shape):
-        print(input_shape)
+        input_shape = (10, )+input_shape[1:]
         output = self.call(np.zeros(input_shape))
-        print(output)
-        return [branch.shape for branch in output]
+        output_shape = [(None, )+branch.shape[1:] for branch in output]
+        return output_shape
 
     def get_config(self):
         config = {"sizes": self.sizes,
