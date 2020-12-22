@@ -2,6 +2,7 @@
 # https://stackoverflow.com/questions/50701913/how-to-split-the-input-into-different-channels-in-keras
 
 from keras.layers import Layer
+import numpy as np
 
 
 class SplitLayer(Layer):
@@ -37,7 +38,7 @@ class SplitLayer(Layer):
         return branches
 
     def compute_output_shape(self, input_shape):
-        return [branch.shape for branch in self.call(numpy.zeros(input_shape))]
+        return [branch.shape for branch in self.call(np.zeros(input_shape))]
 
     def get_config(self):
         config = {"sizes": self.sizes,
