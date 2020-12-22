@@ -36,6 +36,9 @@ class SplitLayer(Layer):
             last = new
         return branches
 
+    def compute_output_shape(self, input_shape):
+        return self.call(input_shape)
+
     def get_config(self):
         config = {"sizes": self.sizes,
                   "target_dim": self.target_dim}
@@ -53,3 +56,6 @@ class DuplicateLayer(Layer):
 
     def call(self, input_layer):
         return [input_layer, input_layer]
+
+    def compute_output_shape(self, input_shape):
+        return [input_shape, input_shape]
