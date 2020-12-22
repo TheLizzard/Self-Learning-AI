@@ -30,4 +30,4 @@ def set_seed(new_seed=None, pyseed=None, randomseed=None,
                                             inter_op_parallelism_threads=1)
     sess = tf.compat.v1.Session(graph=tf.compat.v1.get_default_graph(),
                                 config=session_conf)
-    tf.keras.backend.set_session(sess)
+    tf.compat.v1.keras.backend.set_session(sess)
