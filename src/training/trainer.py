@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import tkinter as tk
 import numpy as np
 import random
 import copy

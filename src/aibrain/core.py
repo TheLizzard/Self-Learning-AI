@@ -302,7 +302,10 @@ optimisations = {"layout_optimizer": True,
                  "pin_to_host_optimization": True,
                  "implementation_selector": True,
                  "min_graph_nodes": 0}
-tf.config.optimizer.set_experimental_options(optimisations)
+try: # Turn on all optimisations
+    tf.config.optimizer.set_experimental_options(optimisations)
+except:
+    warnings.warn("Couldn't turn on optimisations.")
 
 from keras.layers import Dense, Conv2D, Conv3D, Flatten, Input, Activation
 from keras.layers import Reshape, MaxPool3D, ZeroPadding2D, Dropout

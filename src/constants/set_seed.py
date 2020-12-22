@@ -1,3 +1,7 @@
+class VersionError(Exception):
+    pass
+
+
 def set_seed(new_seed=None, pyseed=None, randomseed=None,
              numpyseed=None, tensorflowseed=None):
     """
@@ -11,6 +15,8 @@ def set_seed(new_seed=None, pyseed=None, randomseed=None,
     seed(new_seed)
 
     import tensorflow as tf
+    if tf.__version__[:2] == "1.":
+        raise VersionError("Tensorflow must be >=2.0.0. YOu have tensorflow "+tf.__version__)
     tf.random.set_seed(new_seed)
 
     import os
