@@ -37,7 +37,7 @@ class SplitLayer(Layer):
         return branches
 
     def compute_output_shape(self, input_shape):
-        return self.call(input_shape)
+        return [branch.shape for branch in self.call(numpy.zeros(input_shape))]
 
     def get_config(self):
         config = {"sizes": self.sizes,
