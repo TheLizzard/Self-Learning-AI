@@ -41,11 +41,6 @@ def _test_creator(env):
 if __name__ == "__main__":
     test_creator()
     with open("tests.tst", "wb") as file:
-        file.write(pickle.dumps(list(RESULTS.items())))
-    idx = 0
-    for env, value in RESULTS.items():
-        print(env, "\t", value)
-        if idx == 3:
-            break
-        else:
-            idx += 1
+        _list = list(RESULTS.items())
+        print(_list[:3])
+        file.write(pickle.dumps(_list))

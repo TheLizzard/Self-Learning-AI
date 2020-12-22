@@ -47,13 +47,13 @@ if __name__ == "__main__":
     loss_dict = {"value": loss_function_value,
                  "policy": loss_function_policy}
 
-    core = AI(model, loss=loss_dict, learning_rate=0.001, ask_verify=True)
+    core = AI(model, loss=loss_dict, learning_rate=0.00001, ask_verify=False)
+    core.plot_model()
     trainer = Trainer(Environment, core)
 
-    for i in range(100):
+    trainer.test()
+    for i in range(10):
         for epoch in range(10):
             trainer.train()
             trainer.flush()
-            print("Done 1 more.")
-            input(">>> ")
-        trainer.test()
+            trainer.test()

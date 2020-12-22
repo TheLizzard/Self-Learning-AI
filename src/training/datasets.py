@@ -22,10 +22,10 @@ class TrainDataset(Sequence):
         msg = "The number of variables given doesn't match what it should be."
         assert len(vars) == len(self.data), msg
         for i, var in enumerate(vars):
-            self.data[i].append(np.asarray(var))
+            self.data[i].append(np.asarray(var, dtype="float32"))
 
     def __getitem__(self, idx):
-        question, *answers = tuple(np.asarray(d) for d in self.data)
+        question, *answers = tuple(np.asarray(d, dtype="float32") for d in self.data)
         return question, list(answers)
 
     def __len__(self):

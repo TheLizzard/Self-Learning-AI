@@ -28,7 +28,7 @@ class Trainer:
     def test(self, sample_size=1000):
         global test_dataset
         error = 0
-        samples = random.sample(test_dataset, sample_size)
+        samples = random.sample(test_dataset.data, sample_size)
         for sample in samples:
             case, correct_value = sample
             error += self.test_value_case(case, correct_value)
@@ -42,17 +42,20 @@ class Trainer:
         self.current_environment = self.environment()
 
     def train(self):
-        while not self.current_environment.over:
+        last_done = False
+        while (not self.current_environment.over) and (not last_done):
             amplified_v, amplified_p = self.amplify(self.AI, self.current_environment)
 
             environment = self.normalise_environment(self.current_environment)
             amplified_p = self.add_missing(amplified_p, self.current_environment)
-            amplified_v = self.normalise_value(self.current_environment, amplified_v)
 
             self.training_data.add(environment, amplified_p, amplified_v)
 
-            action = self.current_environment.random_action_from_policy(amplified_p)
-            self.current_environment.act(action)
+            if not self.current_environment.over:
+                action = self.current_environment.random_action_from_policy(amplified_p)
+                self.current_environment.act(action)
+            else:
+                last_done = True
         self.reset()
 
     def flush(self):
@@ -72,8 +75,9 @@ class Trainer:
             return -value
 
     def amplify(self, ai, environment):
-        amplified_vs = alphabeta_values(environment, eval=self.ask_ai_value, depth=3)
-        amplified_p = [(i+1)/2 for i in amplified_vs]
+        amplified_vs = alphabeta_values(environment, eval=self.ask_ai_value, depth=10)
+        amplified_vs = [self.normalise_value(environment, value) for value in amplified_vs]
+        amplified_p = [(i+1)/2 for i in amplified_vs] # Note: `(i+1)/2` converts the score to 0<score<1
         amplified_v = max(amplified_vs)
         return amplified_v, amplified_p
 

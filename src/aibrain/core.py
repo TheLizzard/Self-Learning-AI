@@ -538,12 +538,11 @@ class AICore:
     def add_zero_padding(self, input_layer, padding_size=None, name=None):
         return ZeroPadding2D(padding=padding_size, name=name)(input_layer)
 
-    def train(self, questions, answers=None, workers=5, use_multiprocessing=True, **kwargs):
-        return self.model.fit(questions, answers, workers=workers, **kwargs,
-                              use_multiprocessing=use_multiprocessing)
+    def train(self, questions, answers=None, **kwargs):
+        return self.model.fit(questions, answers, **kwargs)
 
     def predict(self, questions):
-        return self.model.predict(questions, use_multiprocessing=True)
+        return self.model.predict(questions)
 
     def evaluate(self, questions, answers, **kwargs):
         return self.model.evaluate(questions, answers, **kwargs)

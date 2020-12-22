@@ -60,4 +60,7 @@ class Environment(TicTacToe):
 
     def normalise_distribution(self, distribution):
         _sum = sum(distribution)
+        if _sum == 0:
+            _sum = len(distribution)
+            return [1/_sum for i in range(_sum)]
         return [i/_sum for i in distribution]

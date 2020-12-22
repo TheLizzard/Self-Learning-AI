@@ -23,8 +23,11 @@ class AI:
         return self.AI.predict(questions)
 
     def predict_single(self, question):
-        answers = self.AI.predict(np.asarray([question]))
+        answers = self.AI.predict(np.asarray([question], dtype="float32"))
         return tuple(answer.tolist()[0] for answer in answers)
+
+    def plot_model(self, *args, **kwargs):
+        self.AI.plot_model(*args, **kwargs)
 
     def deepcopy(self):
         return copy.deepcopy(self)

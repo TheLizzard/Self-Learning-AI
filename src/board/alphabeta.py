@@ -3,9 +3,10 @@ def alphabeta_values(node, depth, eval):
     values = []
     if node.game_over:
         if node.winner is None:
-            return 0
+            value = 0
         else:
-            return node.winner*2-1
+            value = node.winner*2-1
+        return [value for i in range(9)]
     elif node.player:
         for move in node.legal_moves:
             node.push(move)
@@ -31,6 +32,9 @@ def alphabeta(node, depth, eval, α=float("-inf"), β=float("inf")):
         for move in node.legal_moves:
             node.push(move)
             value = max(value, alphabeta(node, depth-1, eval, α, β))
+            if value == 1:
+                node.pop()
+                return 1
             node.pop()
             α = max(α, value)
             if α >= β:
@@ -41,6 +45,9 @@ def alphabeta(node, depth, eval, α=float("-inf"), β=float("inf")):
         for move in node.legal_moves:
             node.push(move)
             value = min(value, alphabeta(node, depth-1, eval, α, β))
+            if value == -1:
+                node.pop()
+                return -1
             node.pop()
             β = min(β, value)
             if α >= β:
