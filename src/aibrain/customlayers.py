@@ -2,6 +2,7 @@
 # https://stackoverflow.com/questions/50701913/how-to-split-the-input-into-different-channels-in-keras
 
 from keras.layers import Layer
+from copy import deepcopy
 import numpy as np
 
 
@@ -62,4 +63,4 @@ class DuplicateLayer(Layer):
         return [input_layer, input_layer]
 
     def compute_output_shape(self, input_shape):
-        return [input_shape, input_shape]
+        return [deepcopy(input_shape), deepcopy(input_shape)]
