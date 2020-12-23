@@ -1,7 +1,4 @@
 # -*- coding: utf-8 -*-
-from constants.set_seed import set_seed
-set_seed(42)
-
 from .core import AICore
 import numpy as np
 import copy

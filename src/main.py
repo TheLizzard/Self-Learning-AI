@@ -1,3 +1,6 @@
+from constants.set_seed import set_seed
+set_seed(42)
+
 import tensorflow as tf
 
 from training.trainer import Trainer
