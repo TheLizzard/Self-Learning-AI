@@ -1,5 +1,5 @@
 from random import randint
-from .errors import IllegalMove
+from .errors import IllegalMove, IllegalPop
 import copy
 
 
@@ -31,6 +31,24 @@ class TicTacToeState:
         self.board = board
         self.player = player
         self.update_game_over()
+
+    def __getstate__(self):
+        return {"board": self.encode_board(self.board), "player": self.player}
+    
+    def __setstate__(self, _self):
+        self.player = _self["player"]
+        self.board = self.decode_board(_self["board"])
+        self.update_game_over()
+
+    def encode_board(self, board):
+        return int("".join(map(str, [cell+1 for cell in board])))
+
+    def decode_board(self, encoded_board):
+        encoded_board = str(encoded_board).zfill(9)
+        board = []
+        for cell in encoded_board:
+            board.append(int(cell)-1)
+        return board
 
     def __repr__(self):
         return str(self)
@@ -143,6 +161,22 @@ class TicTacToe:
         self.state = TicTacToeState()
         self.move_stack = []
         self.states_stack = []
+
+    def __getstate__(self):
+        move_stack = "".join(map(str, self.move_stack))
+        move_stack = int(move_stack.zfill(1))
+        ## Encode states_stack to take less space
+        return {"state": self.state, "move_stack": move_stack, "states_stack": self.states_stack}
+
+    def __setstate__(self, _self):
+        self.state = _self["state"]
+        move_stack = _self["move_stack"]
+        self.move_stack = []
+        if move_stack != 0:
+            for move in str(move_stack):
+                self.move_stack.append(int(move))
+        ## Add decoding after encoding the states_stack
+        self.states_stack = _self["states_stack"]
 
     def __str__(self):
         return str(self.state).replace("TicTacToeState", "TicTacToe")

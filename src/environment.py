@@ -9,6 +9,8 @@ WARNED_DEEPCOPY = False
 
 
 class Environment(TicTacToe):
+    __slots__ = tuple()
+
     def act(self, action):
         super().push(action)
 

@@ -38,6 +38,7 @@ def _test_creator(env):
         return best_value
 
 
+## All of the ending positions get saved to "tests.tst"
 if __name__ == "__main__":
     test_creator()
     with open("tests.tst", "wb") as file:

@@ -34,8 +34,13 @@ class Trainer:
             error += self.test_value_case(case, correct_value)
         print(error)
 
-    def test_value_case(self, case, correct_value):
-        value = self.ask_ai_value(case)
+    def test_value_case(self, environment, correct_value):
+        value = self.ask_ai_value(environment)
+        value = self.normalise_value(environment, value)
+
+        #print(environment, environment.player, correct_value, value, sep="\t")
+        #input(">>> ")
+
         return (correct_value-value)**2
 
     def reset(self):
@@ -43,16 +48,22 @@ class Trainer:
 
     def train(self):
         last_done = False
-        while (not self.current_environment.over) and (not last_done):
+        while (not self.current_environment.over) or (not last_done):
             amplified_v, amplified_p = self.amplify(self.AI, self.current_environment)
+            policy = self.add_missing([p+0.1 for p in amplified_p], self.current_environment)
 
+            neg_environment = self.normalise_environment(self.current_environment, reverse=True)
             environment = self.normalise_environment(self.current_environment)
             amplified_p = self.add_missing(amplified_p, self.current_environment)
 
+            print(self.current_environment, self.current_environment.player, amplified_v, amplified_p, sep="\t")
+            input(">>> ")
+
             self.training_data.add(environment, amplified_p, amplified_v)
+            self.training_data.add(neg_environment, amplified_p, -amplified_v)
 
             if not self.current_environment.over:
-                action = self.current_environment.random_action_from_policy(amplified_p)
+                action = self.current_environment.random_action_from_policy(policy)
                 self.current_environment.act(action)
             else:
                 last_done = True
@@ -61,7 +72,14 @@ class Trainer:
     def flush(self):
         self.AI.train(self.training_data)
 
-    def normalise_environment(self, environment):
+    def normalise_environment(self, environment, reverse=False):
+        if reverse:
+            if environment.player:
+                xs, os, ns = environment.state_as_list
+                return [os, xs, ns]
+            else:
+                return environment.state_as_list
+
         if environment.player:
             return environment.state_as_list
         else:
