@@ -130,6 +130,12 @@ dmypy.json
 
 # Custom
 src/constants/filesystem.py
-src/constants/graphing_old.py
+src/gui/test.py
+src/gui/threadsafe/operation.py
+src/gui/threadsafe/operations.py
+src/gui/threadsafe/tk.py
+src/gui/threadsafe/widget.py
+src/gui/graphing_old.py
+
 src/tests.tst
 *.tst

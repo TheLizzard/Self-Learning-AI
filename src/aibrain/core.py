@@ -307,9 +307,6 @@ try: # Turn on all optimisations
 except:
     warnings.warn("Couldn't turn on optimisations.")
 
-import os
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "100"
-
 from keras.layers import Dense, Conv2D, Conv3D, Flatten, Input, Activation
 from keras.layers import Reshape, MaxPool3D, ZeroPadding2D, Dropout
 from keras.layers import Concatenate, GaussianNoise, MaxPool2D

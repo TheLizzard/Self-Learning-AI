@@ -1,6 +1,6 @@
 import pickle
 
-from environment import Environment
+from board.environment import Environment
 
 
 RESULTS = {}

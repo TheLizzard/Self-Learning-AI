@@ -23,7 +23,7 @@ class Trainer:
         error = 0
         for case, correct_value in test_dataset:
             error += self.test_value_case(case, correct_value)
-        print(error)
+        return error
 
     def test(self, sample_size=1000):
         global test_dataset
@@ -32,7 +32,7 @@ class Trainer:
         for sample in samples:
             case, correct_value = sample
             error += self.test_value_case(case, correct_value)
-        print(error)
+        return error
 
     def test_value_case(self, environment, correct_value):
         value = self.ask_ai_value(environment)
@@ -48,6 +48,8 @@ class Trainer:
 
     def train(self):
         last_done = False
+        #for move in (7, 8, 9, 5, 4, 1, 6, 3, 2):
+        #    self.current_environment.act(move)
         while (not self.current_environment.over) or (not last_done):
             amplified_v, amplified_p = self.amplify(self.AI, self.current_environment)
             policy = self.add_missing([p+0.1 for p in amplified_p], self.current_environment)
@@ -56,8 +58,8 @@ class Trainer:
             environment = self.normalise_environment(self.current_environment)
             amplified_p = self.add_missing(amplified_p, self.current_environment)
 
-            print(self.current_environment, self.current_environment.player, amplified_v, amplified_p, sep="\t")
-            input(">>> ")
+            #print(self.current_environment, self.current_environment.player, amplified_v, amplified_p, sep="\t")
+            #input(">>> ")
 
             self.training_data.add(environment, amplified_p, amplified_v)
             self.training_data.add(neg_environment, amplified_p, -amplified_v)
