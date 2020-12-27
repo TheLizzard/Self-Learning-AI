@@ -111,7 +111,9 @@ model = [{"type": "input", "shape": (28, 28)},
          {"type": "dense", "size": 10},
          {"type": "softmax"}] # Apply softmax as the data is categorical
 
-core = AICore(model, loss="categorical_crossentropy", learning_rate=0.001)
+core = AICore(model)
+core.compile(loss="categorical_crossentropy", learning_rate=0.001, metrics=["acc"])
+
 try:
     # Train the neural net on the data
     core.train(x_train, y_train, batch_size=100, epochs=15,
@@ -124,6 +126,10 @@ except KeyboardInterrupt as error:
 score = core.model.evaluate(x_test, y_test, verbose=1)
 print("Loss:", score[0])
 print("Accuracy %s%%"%(str(score[1]*100+0.05/10)[:5])) # Round the accuracy
+
+# Save the model
+core.save("autosave_example1.pcl")
+
 ================================================================================
                Example 1 Improved (99.13% accuracy):
 
@@ -194,8 +200,9 @@ model = [{"type": "input", "shape": (28, 28)},
          {"type": "dense", "size": 10},
          {"type": "softmax"}] # Apply softmax as the data is categorical
 
+core = AICore(model)
+core.compile(loss="categorical_crossentropy", learning_rate=0.001, metrics=["acc"])
 
-core = AICore(model, loss="categorical_crossentropy", learning_rate=0.001)
 try:
     # Train the neural net on the data
     core.train(x_train, y_train, batch_size=100, epochs=15,
@@ -208,6 +215,9 @@ except KeyboardInterrupt as error:
 score = core.model.evaluate(x_test, y_test, verbose=1)
 print("Loss:", score[0])
 print("Accuracy %s%%"%(str(score[1]*100+0.05/10)[:5])) # Round the accuracy
+
+# Save the model
+core.save("autosave_example2.pcl")
 
 ================================================================================
                                      Layers:
@@ -305,7 +315,7 @@ optimisations = {"layout_optimizer": True,
 try: # Turn on all optimisations
     tf.config.optimizer.set_experimental_options(optimisations)
 except:
-    warnings.warn("Couldn't turn on optimisations.")
+    warnings.warn("Couldn't turn on tensorflow optimisations.")
 
 from keras.layers import Dense, Conv2D, Conv3D, Flatten, Input, Activation
 from keras.layers import Reshape, MaxPool3D, ZeroPadding2D, Dropout
@@ -324,45 +334,47 @@ import sys
 from .customlayers import SplitLayer, DuplicateLayer
 
 
+# We can't pickle the object and have no idea how to dela with it
+class Unknown:pass
+
+
 class AICore:
-    def __init__(self, modeldict, learning_rate=0.001, optimizer=None,
-                 loss="categorical_crossentropy", load=False, ask_verify=True):
-        if load == False:
-            self.modeldict = modeldict
-            self.learning_rate = learning_rate
-            self.loss = loss
-            if optimizer is None:
-                self.optimizer = Adam(learning_rate=self.learning_rate)
-            else:
-                self.optimizer = optimizer
+    def __init__(self, modeldict=None, custom_objects={}, ask_verify=True):
+        self.modeldict = modeldict
+        self.custom_objects = custom_objects
+        if modeldict is not None:
             self.init_neural_network()
             if ask_verify:
                 self.ask_verify_model()
-        else:
-            if load != True:
-                load = "save/autosave.sav"
-            self.load(load, ask_verify)
+
+    def save(self, location="save/autosave.sav"):
+        state = self.__getstate__()
+        with open(location, "wb") as file:
+            file.write(pickle.dumps(state))
+
+    def _save(self, location):
+        self.model.save(location)
 
     def __getstate__(self):
-        _self = copy.deepcopy(self.__dict__)
-        keys_to_pop = []
-        for key, value in _self.items():
+        _self = {}
+        for key, value in self.__dict__.items():
+            if key == "custom_objects":
+                continue
             if key == "model":
-                _self[key] = self.get_model_state()
+                value = self.get_model_state()
             else:
                 try:
-                    _ = pickle.dumps(value)
+                    pickle.dumps(value)
                 except:
                     sys.stderr.write(("Warning: Couldn't save \"%s\" "+\
                                       "attribute.\n")%key)
-                    keys_to_pop.append(key)
-        for key in keys_to_pop:
-            _self.pop(key)
+                    value = Unknown()
+            _self.update({key: value})
         return _self
 
     def get_model_state(self):
         with tempfile.TemporaryDirectory() as basefolder:
-            self.save(basefolder)
+            self._save(basefolder)
             zipfilename = basefolder+"\\files.zip"
             filesystem = zipfile.ZipFile(zipfilename, "x", zipfile.ZIP_STORED)
             rootlen = len(basefolder) + 1
@@ -376,14 +388,26 @@ class AICore:
             with open(zipfilename, "br") as file:
                 return file.read()
 
-    def __setstate__(self, _self):
-        for key, value in _self.items():
-            if key == "model":
-                self.set_model_state(value)
-            else:
-                setattr(self, key, value)
+    def load(self, location="save/autosave.sav", custom_objects={}, compile=True):
+        with open(location, "rb") as file:
+            encoded_data = file.read()
+        state = pickle.loads(encoded_data)
+        self.__setstate__(state, compile=compile, custom_objects=custom_objects)
 
-    def set_model_state(self, state):
+    def _load(self, location, ask_verify=False, custom_objects={}, compile=True):
+        self.custom_objects = custom_objects
+        custom_objects = {"SplitLayer": SplitLayer,
+                          "DuplicateLayer": DuplicateLayer}
+        custom_objects.update(self.custom_objects)
+        self.model = load_model(location, custom_objects=custom_objects, compile=compile)
+        if ask_verify:
+            self.ask_verify_model()
+
+    def __setstate__(self, _self, custom_objects={}, compile=True):
+        self.__dict__.update(_self)
+        self.set_model_state(_self["model"], custom_objects=custom_objects, compile=compile)
+
+    def set_model_state(self, state, custom_objects={}, compile=True):
         with tempfile.TemporaryDirectory() as basefolder:
             zipfilename = basefolder+"\\files.zip"
             with open(zipfilename, "bw") as file:
@@ -397,17 +421,7 @@ class AICore:
                     filesystem.extract(member, basefolder)
             filesystem.close()
 
-            self.load(basefolder, ask_verify=False)
-
-    def save(self, location="save/autosave.sav"):
-        self.model.save(location)
-
-    def load(self, location="save/autosave.sav", ask_verify=True):
-        custom_objects = {"SplitLayer": SplitLayer,
-                          "DuplicateLayer": DuplicateLayer}
-        self.model = load_model(location, custom_objects=custom_objects)
-        if ask_verify:
-            self.ask_verify_model()
+            self._load(basefolder, ask_verify=False, custom_objects=custom_objects, compile=compile)
 
     def ask_verify_model(self):
         self.model.summary()
@@ -422,12 +436,8 @@ class AICore:
                        dpi=dpi, show_shapes=shapes)
         except ImportError as error:
             print(error, file=sys.stderr)
-            print("Couldn't save an image of the model because "\
-                  "\"import pydot\" failed", file=sys.stderr)
         except OSError as error:
             print(error, file=sys.stderr)
-            print("Couldn't save an image of the model because pydot"\
-                  "failed to call GraphViz", file=sys.stderr)
 
     def init_neural_network(self):
         assert self.modeldict[0]["type"] == "input", "First layer has to "+\
@@ -438,12 +448,22 @@ class AICore:
 
         for layer in self.modeldict[1:]:
             last_layer = self.add_layer(last_layer, layer)
-
-        kwargs = {"optimizer": self.optimizer,
-                  "loss": self.loss}
         self.model = Model(inputs=input_layer, outputs=last_layer)
-        self.model.compile(**kwargs)
         self.model.build(input_shape=input_shape)
+
+    def compile(self, optimizer=None, learning_rate=None, loss_weights=None,
+                loss="categorical_crossentropy", weighted_metrics=None, metrics=None):
+        assert self.modeldict is not None, "Can't compile an empty model."
+        self.loss = loss
+        if optimizer is None:
+            msg = "You need to supply a learning_rate is optimizer is None"
+            assert learning_rate is not None, msg
+            optimizer = Adam(learning_rate=learning_rate)
+        else:
+            optimizer = optimizer
+
+        self.model.compile(optimizer=optimizer, loss_weights=loss_weights, loss=loss,
+                           weighted_metrics=weighted_metrics, metrics=metrics)
 
     def add_layer(self, input_layer, this):
         if isinstance(this, list):

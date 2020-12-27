@@ -1,9 +1,10 @@
+from functools import partial
 from time import sleep
 import tkinter as tk
 import threading
 
 from .draggablewindow import DraggableWindow
-from .threadsafe.partial import partial
+#from .threadsafe.partial import partial
 from .graphing import ScatterPlot
 
 
@@ -11,6 +12,7 @@ class ContinuousPlotWindow:
     def __init__(self, fg="#000000", bg="#f0f0ed", geometry=(400, 400), dpi=100, exit_when_done=False):
         self.exit_when_done = exit_when_done
         self.points = [[], []]
+        self.kwargs = {}
         self.set_format()
         self.ops = []
 
@@ -19,22 +21,25 @@ class ContinuousPlotWindow:
         self.plot = ScatterPlot(self.root, fg=fg, bg=bg, geometry=geometry, dpi=dpi)
         self.plot.grid(row=1, column=1)
 
-    def destroy(self):
+    def __getstate__(self):
+        self_dict = {"exit_when_done": self.exit_when_done,
+                     "points": self.points,
+                     "kwargs": self.kwargs,
+                     "plot": self.plot.__getstate__()}
+        return self_dict
+
+    def __setstate__(self, _self):
+        self.__dict__.update(_self)
+        self.root = DraggableWindow()
+        self.root.protocol("WM_DELETE_WINDOW", self.destroy)
+        self.plot = ScatterPlot(self.root, **self.plot.__setstate__())
+        self.plot.grid(row=1, column=1)
+
+    def destroy(self): # Do not call
         self.root.quit()
-        self.plot.destroy()
         self.root.destroy()
 
-    def set_main(self, function):
-        t = threading.Thread(target=function, daemon=True)
-        t.start()
-
-    def mainloop(self):
-        self.root.after(100, self._mainloop)
-        self.root.mainloop()
-        if self.exit_when_done:
-            exit()
-
-    def _mainloop(self):
+    def _mainloop(self): # Do not call
         self.flush_ops()
         self.root.after(100, self._mainloop)
 
@@ -47,6 +52,19 @@ class ContinuousPlotWindow:
         self.plot.update()
 
     # The caller can only call the methods bellow:
+    def reset(self):
+        self.ops.append(partial(self.plot.reset))
+
+    def set_main(self, function):
+        t = threading.Thread(target=function, daemon=True)
+        t.start()
+
+    def mainloop(self):
+        self.root.after(100, self._mainloop)
+        self.root.mainloop()
+        if self.exit_when_done:
+            exit()
+
     def set_format(self, colour=None, size=2, marker="o"):
         """
         Setts the format of the data points
@@ -74,7 +92,7 @@ class ContinuousPlotWindow:
             right: int/float    # The maximum for the x-axis
         If they are None then the default ones are used.
         """
-        self.ops.append(partial(self.plot.xlim, left=left, right=right))
+        self.plot.xlim(left=left, right=right)
 
     def ylim(self, left=None, right=None):
         """
@@ -83,7 +101,7 @@ class ContinuousPlotWindow:
             right: int/float    # The maximum for the y-axis
         If they are None then the default ones are used.
         """
-        self.ops.append(partial(self.plot.ylim, left=left, right=right))
+        self.plot.ylim(left=left, right=right)
 
     def set_xlabel(self, text, fontsize=10, colour="black"):
         """
@@ -92,7 +110,7 @@ class ContinuousPlotWindow:
             fontsize: int
             colour: string
         """
-        self.ops.append(partial(self.plot.set_xlabel, text, fontsize=fontsize, colour=colour))
+        self.plot.set_xlabel(text, fontsize=fontsize, colour=colour)
 
     def set_ylabel(self, text, fontsize=10, colour="black"):
         """
@@ -101,7 +119,7 @@ class ContinuousPlotWindow:
             fontsize: int
             colour: string
         """
-        self.ops.append(partial(self.plot.set_ylabel, text, fontsize=fontsize, colour=colour))
+        self.plot.set_ylabel(text, fontsize=fontsize, colour=colour)
 
     def set_title(self, text, fontsize=15, colour="black"):
         """
@@ -110,7 +128,7 @@ class ContinuousPlotWindow:
             fontsize: int
             colour: string
         """
-        self.ops.append(partial(self.plot.set_title, text, fontsize=fontsize, colour=colour))
+        self.plot.set_title(text, fontsize=fontsize, colour=colour)
 
     def resize(self, width, height, dpi=None):
         """

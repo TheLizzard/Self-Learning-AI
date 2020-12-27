@@ -48,8 +48,8 @@ class SplitLayer(Layer):
         config = {"sizes": self.sizes,
                   "target_dim": self.target_dim}
         base_config = super().get_config()
-        return config.update(base_config)
-        #return dict(list(base_config.items()) + list(config.items()))
+        config.update(base_config)
+        return config
 
 
 class DuplicateLayer(Layer):

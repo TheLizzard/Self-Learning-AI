@@ -5,8 +5,18 @@ import copy
 
 
 class AI:
-    def __init__(self, model, **kwargs):
-        self.AI = AICore(model, **kwargs)
+    def __init__(self, model=None, custom_objects={}, ask_verify=True):
+        self.AI = AICore(model, ask_verify=ask_verify, custom_objects=custom_objects)
+
+    def __getstate__(self, **kwargs):
+        return self.AI.__getstate__(**kwargs)
+
+    def __setstate__(self, state, **kwargs):
+        self.AI = AICore()
+        self.AI.__setstate__(state, **kwargs)
+
+    def compile(self, **kwargs):
+        self.AI.compile(**kwargs)
 
     def train(self, questions, answers=None, verbose=0, **kwargs):
         history = self.AI.train(questions, answers, verbose=verbose, **kwargs)
@@ -37,3 +47,6 @@ class AI:
 
     def load(self, *args, **kwargs):
         self.AI.load(*args, **kwargs)
+
+    def ask_verify(self, *args, **kwargs):
+        self.AI.ask_verify_model(*args, **kwargs)

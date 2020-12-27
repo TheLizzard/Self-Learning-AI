@@ -4,6 +4,7 @@ import random
 import copy
 import sys
 
+from aibrain.ai import AI
 from board.alphabeta import alphabeta_values
 from .datasets import TrainDataset, TestDataset
 
@@ -17,6 +18,20 @@ class Trainer:
         self.environment = environment
         self.AI = AI
         self.reset()
+
+    def __getstate__(self):
+        return {"training_data": self.training_data,
+                "environment": self.environment,
+                "AI": self.AI.__getstate__(),
+                "current_environment": self.current_environment}
+    
+    def __setstate__(self, _self, custom_objects={}, compile=True):
+        self.AI = AI()
+        self.AI.__setstate__(_self.pop("AI"), custom_objects=custom_objects, compile=compile)
+        self.__dict__.update(_self)
+
+    def compile(self, **kwargs):
+        self.AI.compile(**kwargs)
 
     def test_all(self, debug=False):
         global test_dataset

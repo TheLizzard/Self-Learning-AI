@@ -39,6 +39,15 @@ class ScatterPlot(tk.Canvas):
         super().__init__(master, height=self.height, width=self.width,
                          borderwidth=0, bg=bg)
 
+    def __getstate__(self):
+        _self = deepcopy(self.__dict__)
+        _self.pop("figure")
+        _self.pop("axis")
+        return _self
+
+    def __setstate__(self, _self):
+        self.__dict__.update(_self)
+
     def xlim(self, left=None, right=None):
         """
         Setts the x-axis minimum and maximum. It has these args:
