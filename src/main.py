@@ -2,6 +2,7 @@
 from constants.set_seed import set_seed
 set_seed(42)
 
+from warnings import warn
 import tensorflow as tf
 
 from aibrain.ai import AI
@@ -9,39 +10,54 @@ from training.trainer import Trainer
 from board.environment import Environment
 from gui.plotwindow import ContinuousPlotWindow
 
-#import sys
-#sys.setrecursionlimit(10000)
-
 
 class App:
-    def __init__(self, model, **kwargs):
+    def __init__(self, model, sample_size=1000, **kwargs):
         self.idx = 1
+        self.sample_size = sample_size
 
         self.AI = AI(model, **kwargs)
         self.AI.plot_model()
         self.trainer = Trainer(Environment, self.AI)
 
         self.plotwindow = ContinuousPlotWindow(fg="white", bg="black", geometry=(400, 400), dpi=100)
-        self.plotwindow.set_xlabel("The epoch", colour="white")
-        self.plotwindow.set_ylabel("The loss", colour="white")
-        self.plotwindow.set_title("The AI loss from the tests", colour="white")
+        self.plotwindow.set_xlabel("Epoch number", colour="white")
+        self.plotwindow.set_ylabel("Loss", colour="white")
+        self.plotwindow.set_title("sample_size = %s"%str(self.sample_size), colour="white")
         self.plotwindow.set_format(colour="white", size=7)
         self.plotwindow.xlim(left=0)
         self.plotwindow.ylim(left=0)
+        self.plotwindow.exit_when_done = True
 
     def set_main(self, function):
         self.plotwindow.set_main(function)
         self.plotwindow.mainloop()
 
-    def test(self, sample_size=1000):
-        loss = self.trainer.test(sample_size)
-        print("[debug]  testing_loss="+str(loss))
-        self.plotwindow.add(self.idx, loss)
-        self.idx += 1
+    def test(self, sample_size=None, debug=False):
+        if sample_size is None:
+            sample_size = self.sample_size
+        loss = self.trainer.test(sample_size, debug=debug)
+        if sample_size == self.sample_size:
+            print("[debug]  testing_loss = "+str(loss))
+            self.plotwindow.add(self.idx, loss)
+            self.idx += 1
+        else:
+            print("[debug]  testing_loss = "+str(loss))+"\tsample_size = "+str(sample_size)
+            warn("This test isn't going to be plotted as sample_size != "+str(self.sample_size))
+    
+    def test_all(self, debug=False):
+        loss = self.trainer.test_all(debug=debug)
+        if self.sample_size == "all":
+            print("[debug]  testing_loss="+str(loss))
+            self.plotwindow.add(self.idx, loss)
+            self.idx += 1
+        else:
+            print("[debug]  testing_loss = "+str(loss))+"\tsample_size = \"all\""
+            warn("This test isn't going to be plotted as \"all\" != "+str(self.sample_size))
 
-    def train(self, worlds=1):
+    def train(self, worlds=1, debug=False):
         for world in range(worlds):
-            self.trainer.train()
+            self.trainer.train(debug=debug)
         self.trainer.flush()
 
 
@@ -86,16 +102,21 @@ if __name__ == "__main__":
                  "policy": loss_function_policy}
 
     def main():
+        import pickle
+
         print("[debug]  starting_test(<BaseTest>)")
-        app.test()
+        app.test_all()
         print("[debug]  test_ended(<BaseTest>)")
         for epoch in range(100):
             print("[debug]  starting_epoch(%s)"%str(epoch))
-            app.train()
+            app.train(worlds=5)
             print("[debug]  epoch_ended(%s)"%str(epoch))
             print("[debug]  starting_test(%s)"%str(epoch))
-            app.test()
+            app.test_all()#debug=True
             print("[debug]  test_ended(%s)"%str(epoch))
+        encoded_data = pickle.dumps(app.AI)
+        with open("saved/autosave.pcl", "wb") as file:
+            file.write(encoded_data)
 
-    app = App(model, loss=loss_dict, learning_rate=0.00001, ask_verify=False)
+    app = App(model, sample_size="all", loss=loss_dict, learning_rate=1e-4, ask_verify=False)
     app.set_main(main)

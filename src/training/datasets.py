@@ -36,23 +36,14 @@ class TestDataset:
     __slots__ = ("data", "idx")
 
     def __init__(self, filename="tests.tst"):
-        self.idx = 0
         with open(filename, "rb") as file:
             self.data = pickle.loads(file.read())
 
     def __iter__(self):
-        self.idx = 0
-        return self.data
-
-    def __next__(self):
-        if len(self.data) == self.idx:
-            raise StopIteration
-        else:
-            self.idx += 1
-            return self[self.idx-1]
+        return iter(self.data)
 
     def __getitem__(self, idx):
-        return self.data
+        return self.data[idx]
 
     def __len__(self):
-        return 1
+        return len(self.data)

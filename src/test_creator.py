@@ -40,8 +40,23 @@ def _test_creator(env):
 
 ## All of the ending positions get saved to "tests.tst"
 if __name__ == "__main__":
+    from constants.set_seed import set_seed
+    set_seed(42)
+
+    import random
+
+    # Calculate the data
     test_creator()
+    _list = list(RESULTS.items())
+
+    # Shuffle the data
+    random.shuffle(_list)
+    print(len(_list))
+
+    # Take only the first 1000 items of the data
+    _list = _list[:1000]
+    print(_list[:3])
+
+    # Save the data to a file
     with open("tests.tst", "wb") as file:
-        _list = list(RESULTS.items())
-        print(_list[:3])
         file.write(pickle.dumps(_list))

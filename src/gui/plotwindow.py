@@ -8,10 +8,11 @@ from .graphing import ScatterPlot
 
 
 class ContinuousPlotWindow:
-    def __init__(self, fg="#000000", bg="#f0f0ed", geometry=(400, 400), dpi=100):
+    def __init__(self, fg="#000000", bg="#f0f0ed", geometry=(400, 400), dpi=100, exit_when_done=False):
+        self.exit_when_done = exit_when_done
         self.points = [[], []]
-        self.ops = []
         self.set_format()
+        self.ops = []
 
         self.root = DraggableWindow()
         self.root.protocol("WM_DELETE_WINDOW", self.destroy)
@@ -30,6 +31,8 @@ class ContinuousPlotWindow:
     def mainloop(self):
         self.root.after(100, self._mainloop)
         self.root.mainloop()
+        if self.exit_when_done:
+            exit()
 
     def _mainloop(self):
         self.flush_ops()

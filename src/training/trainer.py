@@ -18,38 +18,34 @@ class Trainer:
         self.AI = AI
         self.reset()
 
-    def full_test(self):
+    def test_all(self, debug=False):
         global test_dataset
         error = 0
         for case, correct_value in test_dataset:
-            error += self.test_value_case(case, correct_value)
+            error += self.test_value_case(case, correct_value, debug=debug)
         return error
 
-    def test(self, sample_size=1000):
+    def test(self, sample_size=1000, debug=False):
         global test_dataset
         error = 0
         samples = random.sample(test_dataset.data, sample_size)
         for sample in samples:
             case, correct_value = sample
-            error += self.test_value_case(case, correct_value)
+            error += self.test_value_case(case, correct_value, debug=debug)
         return error
 
-    def test_value_case(self, environment, correct_value):
-        value = self.ask_ai_value(environment)
-        value = self.normalise_value(environment, value)
-
-        #print(environment, environment.player, correct_value, value, sep="\t")
-        #input(">>> ")
-
+    def test_value_case(self, environment, correct_value, debug=False):
+        value = self.ask_ai_value(environment, normalise=False, debug=debug)
+        if debug:
+            print(environment, "correct_value = "+str(correct_value), "value = "+str(value), sep="\t")
+            input("[Testing]>>> ")
         return (correct_value-value)**2
 
     def reset(self):
         self.current_environment = self.environment()
 
-    def train(self):
+    def train(self, debug=False):
         last_done = False
-        #for move in (7, 8, 9, 5, 4, 1, 6, 3, 2):
-        #    self.current_environment.act(move)
         while (not self.current_environment.over) or (not last_done):
             amplified_v, amplified_p = self.amplify(self.AI, self.current_environment)
             policy = self.add_missing([p+0.1 for p in amplified_p], self.current_environment)
@@ -58,8 +54,9 @@ class Trainer:
             environment = self.normalise_environment(self.current_environment)
             amplified_p = self.add_missing(amplified_p, self.current_environment)
 
-            #print(self.current_environment, self.current_environment.player, amplified_v, amplified_p, sep="\t")
-            #input(">>> ")
+            if debug:
+                print(environment, amplified_p, amplified_v, sep="\t")
+                input("[Training]>>> ")
 
             self.training_data.add(environment, amplified_p, amplified_v)
             self.training_data.add(neg_environment, amplified_p, -amplified_v)
@@ -120,10 +117,19 @@ class Trainer:
                 extended_policy.append(0)
         return extended_policy
 
-    def ask_ai(self, environment):
-        question = np.asarray(self.normalise_environment(environment))
+    def ask_ai(self, environment, normalise=True, debug=False):
+        if normalise:
+            question = self.normalise(environment)
+        else:
+            question = environment.state_as_list
+        question = np.asarray(question)
         policy, value = self.AI.predict_single(question)
-        return self.normalise_value(environment, value[0]), policy
+        if debug:
+            print(question, " => "+str(policy)+"  "+str(value[0]))
+        if normalise:
+            return self.normalise_value(environment, value[0]), policy
+        else:
+            return value[0], policy
 
-    def ask_ai_value(self, environment):
-        return self.ask_ai(environment)[0]
+    def ask_ai_value(self, environment, normalise=True, debug=False):
+        return self.ask_ai(environment, normalise=normalise, debug=debug)[0]
