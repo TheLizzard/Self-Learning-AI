@@ -130,9 +130,8 @@ if __name__ == "__main__":
                  "policy": loss_function_policy}
 
     def main():
-        app.save()
-        app.load(custom_objects={"loss_function_value": loss_function_value, "loss_function_policy": loss_function_policy})
-        app.compile(loss=loss_dict, learning_rate=1e-4)
+        #app.load(custom_objects={"loss_function_value": loss_function_value, "loss_function_policy": loss_function_policy})
+        #app.compile(loss=loss_dict, learning_rate=1e-4)
         print("[debug]  starting_test(<BaseTest>)")
         app.test_all()
         print("[debug]  test_ended(<BaseTest>)")
@@ -143,6 +142,8 @@ if __name__ == "__main__":
             print("[debug]  starting_test(%s)"%str(epoch))
             app.test_all()#debug=True
             print("[debug]  test_ended(%s)"%str(epoch))
+            if epoch%5 == 0:
+                app.save()
         app.save()
 
     app = App(model, custom_objects={"loss":loss_dict}, sample_size="all", ask_verify=False)
