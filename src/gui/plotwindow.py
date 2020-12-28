@@ -2,6 +2,7 @@ from functools import partial
 from time import sleep
 import tkinter as tk
 import threading
+import sys
 
 from .draggablewindow import DraggableWindow
 #from .threadsafe.partial import partial
@@ -52,18 +53,19 @@ class ContinuousPlotWindow:
         self.plot.update()
 
     # The caller can only call the methods bellow:
+    def mainloop(self):
+        self.root.after(100, self._mainloop)
+        self.root.mainloop()
+        print("Exiting")
+        if self.exit_when_done:
+            exit()
+
     def reset(self):
         self.ops.append(partial(self.plot.reset))
 
     def set_main(self, function):
         t = threading.Thread(target=function, daemon=True)
         t.start()
-
-    def mainloop(self):
-        self.root.after(100, self._mainloop)
-        self.root.mainloop()
-        if self.exit_when_done:
-            exit()
 
     def set_format(self, colour=None, size=2, marker="o"):
         """
