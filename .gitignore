@@ -131,6 +131,7 @@ dmypy.json
 # Custom
 src/constants/filesystem.py
 src/gui/test.py
+src/test.py
 src/gui/threadsafe/operation.py
 src/gui/threadsafe/operations.py
 src/gui/threadsafe/tk.py

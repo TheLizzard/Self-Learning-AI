@@ -24,11 +24,14 @@ class Trainer:
                 "environment": self.environment,
                 "AI": self.AI.__getstate__(),
                 "current_environment": self.current_environment}
-    
-    def __setstate__(self, _self, custom_objects={}, compile=True):
+
+    def __setstate__(self, _self, **kwargs):
         self.AI = AI()
-        self.AI.__setstate__(_self.pop("AI"), custom_objects=custom_objects, compile=compile)
+        self.AI.__setstate__(_self.pop("AI"), **kwargs)
         self.__dict__.update(_self)
+
+    def reset(self):
+        self.current_environment = self.environment()
 
     def compile(self, **kwargs):
         self.AI.compile(**kwargs)
@@ -55,9 +58,6 @@ class Trainer:
             print(environment, "correct_value = "+str(correct_value), "value = "+str(value), sep="\t")
             input("[Testing]>>> ")
         return (correct_value-value)**2
-
-    def reset(self):
-        self.current_environment = self.environment()
 
     def train(self, debug=False):
         last_done = False
@@ -148,3 +148,6 @@ class Trainer:
 
     def ask_ai_value(self, environment, normalise=True, debug=False):
         return self.ask_ai(environment, normalise=normalise, debug=debug)[0]
+
+    def config(self, *args, **kwargs):
+        return self.AI.config(*args, **kwargs)

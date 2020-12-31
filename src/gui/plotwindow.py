@@ -56,7 +56,6 @@ class ContinuousPlotWindow:
     def mainloop(self):
         self.root.after(100, self._mainloop)
         self.root.mainloop()
-        print("Exiting")
         if self.exit_when_done:
             exit()
 

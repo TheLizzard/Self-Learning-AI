@@ -1,10 +1,16 @@
-# Get the seed for the randomness to produce reproducible results
-from constants.set_seed import set_seed
-set_seed(42)
+import os
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 
+# Get the seed for the randomness to produce reproducible results
+from constants import seed as _seed
+
+from inspect import getsource, getframeinfo, stack
+from inspect import getsource
 from warnings import warn
 import tensorflow as tf
+from os import path
 import pickle
+import sys
 
 from aibrain.ai import AI
 from training.trainer import Trainer
@@ -12,14 +18,33 @@ from board.environment import Environment
 from gui.plotwindow import ContinuousPlotWindow
 
 
+class Logger:
+    __slots__ = ("output", "items")
+
+    def __init__(self, output=True):
+        self.output = output
+        self.items = []
+
+    def append(self, item, force_output=False):
+        self.items.append(item)
+        if self.output or force_output:
+            print(item)
+
+    def dump(self, obj):
+        padding = "=" * max(len(item) for item in self.items)
+        obj.write(padding + "\n".join(self.items) + padding)
+
+
 class App:
-    def __init__(self, model, custom_objects={}, ask_verify=True, sample_size=1000, **kwargs):
+    def __init__(self, model, ask_verify=True, sample_size=1000, debug=True, **kwargs):
+        self._debug = [debug]
+        self.ops = Logger()
         self.idx = 1
         self.sample_size = sample_size
 
-        ai = AI(model, ask_verify=ask_verify, custom_objects=custom_objects)
-        ai.plot_model()
-        self.trainer = Trainer(Environment, ai)
+        self.AI = AI(model, ask_verify=ask_verify)
+        self.AI.plot_model()
+        self.trainer = Trainer(Environment, self.AI)
 
         self.plotwindow = ContinuousPlotWindow(fg="white", bg="black", geometry=(400, 400), dpi=100)
         self.plotwindow.set_xlabel("Epoch number", colour="white")
@@ -30,34 +55,70 @@ class App:
         self.plotwindow.ylim(left=0)
         self.plotwindow.exit_when_done = True
 
+    @property
+    def debug(self):
+        return self._debug[0]
+
+    @debug.setter
+    def debug(self, value):
+        self._debug[0] = value
+
+    def set_seed(self, seed=42):
+        _seed.set_seed(seed)
+
+        self.ops.append("[debug] set_seed(%s)"%str(seed))
+
     def compile(self, **kwargs):
         self.trainer.compile(**kwargs)
+
+        kwargs_text = self.dict_to_str(kwargs)
+        self.ops.append("[debug] compile(%s)" % kwargs_text)
+
+    def config(self, *args, **kwargs):
+        text = self.list_to_str(args)
+        if (len(args) != 0) and (len(kwargs) != 0):
+            text += ", "
+        text += self.dict_to_str(kwargs)
+        self.ops.append("[debug] config(%s)"%text)
+
+        return self.trainer.config(*args, **kwargs)
 
     def save(self, filename="saved/autosave.pcl"):
         _self = {}
         _self.update(self.__dict__)
-        _self.pop("plotwindow")
 
-        trainer = pickle.dumps(self.trainer.__getstate__())
-        _self.update({"trainer": trainer, "losses": self.plotwindow.points[1]})
+        _self.update({"trainer": self.trainer.__getstate__(),
+                      "losses": self.plotwindow.points[1]})
+        _self.pop("plotwindow")
+        _self.pop("AI")
 
         encoded_data = pickle.dumps(_self)
         with open(filename, "wb") as file:
             file.write(encoded_data)
 
-    def load(self, filename="saved/autosave.pcl", custom_objects={}):
+        self.ops.append("[debug] save(filename=%s)"%filename)
+
+    def load(self, filename="saved/autosave.pcl", **kwargs):
         with open(filename, "rb") as file:
             encoded_data = file.read()
         _self = pickle.loads(encoded_data)
-        state = pickle.loads(_self.pop("trainer"))
-        self.trainer.__setstate__(state, custom_objects=custom_objects)
-        losses = _self.pop("losses")
         self.__dict__.update(_self)
+
+        self.trainer = Trainer(lambda: None, None)
+        self.trainer.__setstate__(_self["trainer"], **kwargs)
+        self.AI = self.trainer.AI
+
         self.plotwindow.reset()
-        for x, y in enumerate(losses, start=1):
+        for x, y in enumerate(self.losses, start=1):
             self.plotwindow.add(x, y)
 
+        text = "filename=" + str(filename) + ", " + self.dict_to_str(kwargs)
+        self.ops.append("[debug] load(%s)"%text)
+
     def set_main(self, function):
+        text = '\n"""'+getsource(function)+'\n"""'
+        self.ops.append("[debug] run(%s)"%text)
+
         self.plotwindow.set_main(function)
         self.plotwindow.mainloop()
 
@@ -66,27 +127,65 @@ class App:
             sample_size = self.sample_size
         loss = self.trainer.test(sample_size, debug=debug)
         if sample_size == self.sample_size:
-            print("[debug]  testing_loss = "+str(loss))
             self.plotwindow.add(self.idx, loss)
             self.idx += 1
         else:
-            print("[debug]  testing_loss = "+str(loss))+"\tsample_size = "+str(sample_size)
             warn("This test isn't going to be plotted as sample_size != "+str(self.sample_size))
+
+        self.ops.append("[debug] test(sample_size=%s)[idx=%s] => %s"%(str(sample_size), str(self.idx-1), str(loss)))
     
     def test_all(self, debug=False):
         loss = self.trainer.test_all(debug=debug)
         if self.sample_size == "all":
-            print("[debug]  testing_loss="+str(loss))
             self.plotwindow.add(self.idx, loss)
             self.idx += 1
         else:
-            print("[debug]  testing_loss = "+str(loss))+"\tsample_size = \"all\""
             warn("This test isn't going to be plotted as \"all\" != "+str(self.sample_size))
+
+        self.ops.append("[debug] test_all()[idx=%s] => %s"%(str(self.idx-1), str(loss)))
 
     def train(self, worlds=1, debug=False):
         for world in range(worlds):
             self.trainer.train(debug=debug)
         self.trainer.flush()
+
+        self.ops.append("[debug] train(worlds=%s)"%str(worlds))
+
+    def predict(self, *args, **kwargs):
+        text = self.list_to_str(args)
+        if (len(args) != 0) and (len(kwargs) != 0):
+            text += ", "
+        text += self.dict_to_str(kwargs)
+        self.ops.append("[debug] predict(%s)"%text)
+
+        return self.AI.predict(*args, **kwargs)
+
+    def exit(self, msg):
+        dir, filename, lineno = self.get_caller()
+        self.ops.append("exit(msg)[filename=%s, lineno=%s, dir=%s]"%(msg, filename, lineno, dir))
+        self.ops.append(msg, force_output=True)
+
+        exit()
+
+    def dump_debug(self):
+        self.ops.dump(sys.stdout)
+
+    @staticmethod
+    def dict_to_str(_dict):
+        items = [str(key)+"="+str(value) for key, value in _dict.items()]
+        return ", ".join(items)
+
+    @staticmethod
+    def list_to_str(_list):
+        return ", ".join(_list)
+
+    @staticmethod
+    def get_caller():
+        caller = getframeinfo(stack()[2][0])
+        location = caller.filename
+        filename = path.basename(location)
+        dir = path.dirname(path.dirname(location))
+        return dir, filename, caller.lineno
 
 
 if __name__ == "__main__":
@@ -126,26 +225,23 @@ if __name__ == "__main__":
     def loss_function_policy(true, pred):
         return tf.math.negative(tf.nn.softmax_cross_entropy_with_logits(pred, true))
 
-    loss_dict = {"value": loss_function_value,
-                 "policy": loss_function_policy}
-
     def main():
-        #app.load(custom_objects={"loss_function_value": loss_function_value, "loss_function_policy": loss_function_policy})
-        #app.compile(loss=loss_dict, learning_rate=1e-4)
-        print("[debug]  starting_test(<BaseTest>)")
-        app.test_all()
-        print("[debug]  test_ended(<BaseTest>)")
+        app.load(custom_objects=custom_objects, compile=True)
+        app.config(method="optimizer.learning_rate.assign", args=(1e-5, ), kwargs={})
         for epoch in range(100):
-            print("[debug]  starting_epoch(%s)"%str(epoch))
             app.train(worlds=5)
-            print("[debug]  epoch_ended(%s)"%str(epoch))
-            print("[debug]  starting_test(%s)"%str(epoch))
             app.test_all()#debug=True
-            print("[debug]  test_ended(%s)"%str(epoch))
-            if epoch%5 == 0:
+            if app.idx%5 == 0:
                 app.save()
         app.save()
+        app.exit("End of main function.")
 
-    app = App(model, custom_objects={"loss":loss_dict}, sample_size="all", ask_verify=False)
+    loss_dict = {"value": loss_function_value,
+                 "policy": loss_function_policy}
+    custom_objects = {"loss_function_value": loss_function_value,
+                      "loss_function_policy": loss_function_policy}
+
+    app = App(model, sample_size="all", ask_verify=False, debug=True)
     app.compile(loss=loss_dict, learning_rate=1e-4)
     app.set_main(main)
+    app.exit("End of code.")

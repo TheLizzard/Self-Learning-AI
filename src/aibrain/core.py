@@ -326,7 +326,6 @@ from keras.optimizers import Adam
 
 import numpy as np
 import tempfile
-import zipfile
 import pickle
 import copy
 import sys
@@ -334,94 +333,47 @@ import sys
 from .customlayers import SplitLayer, DuplicateLayer
 
 
-# We can't pickle the object and have no idea how to dela with it
-class Unknown:pass
-
-
 class AICore:
-    def __init__(self, modeldict=None, custom_objects={}, ask_verify=True):
+    def __init__(self, modeldict=None, ask_verify=True):
         self.modeldict = modeldict
-        self.custom_objects = custom_objects
         if modeldict is not None:
             self.init_neural_network()
             if ask_verify:
                 self.ask_verify_model()
 
-    def save(self, location="save/autosave.sav"):
-        state = self.__getstate__()
-        with open(location, "wb") as file:
-            file.write(pickle.dumps(state))
-
-    def _save(self, location):
-        self.model.save(location)
-
     def __getstate__(self):
-        _self = {}
+        _self = dict()
         for key, value in self.__dict__.items():
-            if key == "custom_objects":
-                continue
             if key == "model":
                 value = self.get_model_state()
-            else:
-                try:
-                    pickle.dumps(value)
-                except:
-                    sys.stderr.write(("Warning: Couldn't save \"%s\" "+\
-                                      "attribute.\n")%key)
-                    value = Unknown()
             _self.update({key: value})
         return _self
 
+    def __setstate__(self, _self, **kwargs):
+        self.__dict__.update(_self)
+        self.set_model_state(_self["model"], **kwargs)
+
     def get_model_state(self):
-        with tempfile.TemporaryDirectory() as basefolder:
-            self._save(basefolder)
-            zipfilename = basefolder+"\\files.zip"
-            filesystem = zipfile.ZipFile(zipfilename, "x", zipfile.ZIP_STORED)
-            rootlen = len(basefolder) + 1
-            for base, subdirs, files in os.walk(basefolder):
-                for file in files:
-                    if file == "files.zip":
-                        continue
-                    filename = os.path.join(base, file)
-                    filesystem.write(filename, filename[rootlen:])
-            filesystem.close()
-            with open(zipfilename, "br") as file:
+        with tempfile.TemporaryDirectory() as folder:
+            self.model.save(folder+"\\model.h5")
+            with open(folder+"\\model.h5", "rb") as file:
                 return file.read()
 
-    def load(self, location="save/autosave.sav", custom_objects={}, compile=True):
-        with open(location, "rb") as file:
-            encoded_data = file.read()
-        state = pickle.loads(encoded_data)
-        self.__setstate__(state, compile=compile, custom_objects=custom_objects)
+    def save(self, filename="save/autosave.h5"):
+        self.model.save(filename)
 
-    def _load(self, location, ask_verify=False, custom_objects={}, compile=True):
-        self.custom_objects = custom_objects
-        custom_objects = {"SplitLayer": SplitLayer,
-                          "DuplicateLayer": DuplicateLayer}
-        custom_objects.update(self.custom_objects)
-        self.model = load_model(location, custom_objects=custom_objects, compile=compile)
+    def load(self, location="save/autosave.h5", ask_verify=False, custom_objects=dict(), **kwargs):
+        custom_objects.update({"SplitLayer": SplitLayer,
+                               "DuplicateLayer": DuplicateLayer})
+        self.model = load_model(location, custom_objects=custom_objects, **kwargs)
         if ask_verify:
             self.ask_verify_model()
 
-    def __setstate__(self, _self, custom_objects={}, compile=True):
-        self.__dict__.update(_self)
-        self.set_model_state(_self["model"], custom_objects=custom_objects, compile=compile)
-
-    def set_model_state(self, state, custom_objects={}, compile=True):
-        with tempfile.TemporaryDirectory() as basefolder:
-            zipfilename = basefolder+"\\files.zip"
-            with open(zipfilename, "bw") as file:
+    def set_model_state(self, state, **kwargs):
+        with tempfile.TemporaryDirectory() as folder:
+            with open(folder+"\\model.h5", "wb") as file:
                 file.write(state)
-
-            filesystem = zipfile.ZipFile(zipfilename, "r", zipfile.ZIP_STORED)
-            for member in filesystem.infolist():
-                filefolder = os.path.join(basefolder, member.filename)
-                abspath = os.path.realpath(filefolder)
-                if abspath.startswith(os.path.realpath(basefolder)):
-                    filesystem.extract(member, basefolder)
-            filesystem.close()
-
-            self._load(basefolder, ask_verify=False, custom_objects=custom_objects, compile=compile)
+            self.load(folder+"\\model.h5", **kwargs)
 
     def ask_verify_model(self):
         self.model.summary()
@@ -454,16 +406,35 @@ class AICore:
     def compile(self, optimizer=None, learning_rate=None, loss_weights=None,
                 loss="categorical_crossentropy", weighted_metrics=None, metrics=None):
         assert self.modeldict is not None, "Can't compile an empty model."
-        self.loss = loss
-        if optimizer is None:
-            msg = "You need to supply a learning_rate is optimizer is None"
-            assert learning_rate is not None, msg
+
+        if (optimizer is None) and (learning_rate is not None):
             optimizer = Adam(learning_rate=learning_rate)
-        else:
-            optimizer = optimizer
 
         self.model.compile(optimizer=optimizer, loss_weights=loss_weights, loss=loss,
                            weighted_metrics=weighted_metrics, metrics=metrics)
+
+    def config(self, variable=None, value=None, method=None, args=tuple(), kwargs=dict()):
+        assert (variable is not None) or (method is not None)
+        if variable is None:
+            self.get_attrib(method)(*args, **kwargs)
+        else:
+            assert value is not None
+            self.set_attrib(variable, value)
+
+    def get_attrib(self, variable):
+        variable_names = variable.split(".")
+        variable = self.model
+        for variable_name in variable_names:
+            variable = getattr(variable, variable_name)
+        return variable
+
+    def set_attrib(self, variable, value):
+        variable_names = variable.split(".")
+        last_name = variable_names.pop()
+        variable = self.model
+        for variable_name in variable_names:
+            variable = getattr(variable, variable_name)
+        setattr(variable, last_name, value)
 
     def add_layer(self, input_layer, this):
         if isinstance(this, list):

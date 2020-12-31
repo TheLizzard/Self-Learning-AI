@@ -5,8 +5,8 @@ import copy
 
 
 class AI:
-    def __init__(self, model=None, custom_objects={}, ask_verify=True):
-        self.AI = AICore(model, ask_verify=ask_verify, custom_objects=custom_objects)
+    def __init__(self, model=None, ask_verify=True):
+        self.AI = AICore(model, ask_verify=ask_verify)
 
     def __getstate__(self, **kwargs):
         return self.AI.__getstate__(**kwargs)
@@ -35,6 +35,9 @@ class AI:
 
     def plot_model(self, *args, **kwargs):
         self.AI.plot_model(*args, **kwargs)
+
+    def config(self, *args, **kwargs):
+        return self.AI.config(*args, **kwargs)
 
     def deepcopy(self):
         return copy.deepcopy(self)
