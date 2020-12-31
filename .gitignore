@@ -138,5 +138,4 @@ src/gui/threadsafe/tk.py
 src/gui/threadsafe/widget.py
 src/gui/graphing_old.py
 
-src/tests.tst
 *.tst
