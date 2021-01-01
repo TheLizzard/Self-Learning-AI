@@ -13,9 +13,10 @@ test_dataset = TestDataset()
 
 
 class Trainer:
-    def __init__(self, environment, AI):
+    def __init__(self, environment, AI, depth):
         self.training_data = TrainDataset(number_vars=3)
         self.environment = environment
+        self.depth = depth
         self.AI = AI
         self.reset()
 
@@ -23,6 +24,7 @@ class Trainer:
         return {"training_data": self.training_data,
                 "environment": self.environment,
                 "AI": self.AI.__getstate__(),
+                "depth": self.depth,
                 "current_environment": self.current_environment}
 
     def __setstate__(self, _self, **kwargs):
@@ -35,6 +37,19 @@ class Trainer:
 
     def compile(self, **kwargs):
         self.AI.compile(**kwargs)
+
+    def human_test(self, depth, debug=False):
+        env = self.environment()
+        while not env.over:
+            print(env)
+            print("Predicted: "+str(self.amplify(env, depth=depth)))
+            _in = input(">>> ")
+            if _in.isdigit():
+                env.act(int(_in))
+            elif _in.lower() == "pop":
+                env.undo_action()
+            else:
+                break
 
     def test_all(self, debug=False):
         global test_dataset
@@ -62,7 +77,7 @@ class Trainer:
     def train(self, debug=False):
         last_done = False
         while (not self.current_environment.over) or (not last_done):
-            amplified_v, amplified_p = self.amplify(self.AI, self.current_environment)
+            amplified_v, amplified_p = self.amplify(self.current_environment)
             policy = self.add_missing([p+0.1 for p in amplified_p], self.current_environment)
 
             neg_environment = self.normalise_environment(self.current_environment, reverse=True)
@@ -106,8 +121,10 @@ class Trainer:
         else:
             return -value
 
-    def amplify(self, ai, environment):
-        amplified_vs = alphabeta_values(environment, eval=self.ask_ai_value, depth=10)
+    def amplify(self, environment, depth=None):
+        if depth is None:
+            depth = self.depth
+        amplified_vs = alphabeta_values(environment, eval=self.ask_ai_value, depth=depth)
         amplified_vs = [self.normalise_value(environment, value) for value in amplified_vs]
         amplified_p = [(i+1)/2 for i in amplified_vs] # Note: `(i+1)/2` converts the score to 0<score<1
         amplified_v = max(amplified_vs)
@@ -134,7 +151,7 @@ class Trainer:
 
     def ask_ai(self, environment, normalise=True, debug=False):
         if normalise:
-            question = self.normalise(environment)
+            question = self.normalise_environment(environment)
         else:
             question = environment.state_as_list
         question = np.asarray(question)

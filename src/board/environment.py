@@ -11,6 +11,12 @@ WARNED_DEEPCOPY = False
 class Environment(TicTacToe):
     __slots__ = tuple()
 
+    def __str__(self):
+        return super().__str__().replace("TicTacToe", "Environment")
+
+    def __repr__(self):
+        return str(self)
+
     def act(self, action):
         super().push(action)
 

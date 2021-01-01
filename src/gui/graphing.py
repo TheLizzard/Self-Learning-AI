@@ -196,6 +196,9 @@ class ScatterPlot(tk.Canvas):
         self.axis.set_ylim(*self.xboundaries)
         self.axis.set_xlim(*self.yboundaries)
 
+        # Add grid lines
+        self.axis.grid(True, color=self.fg)
+
         # Make everything neat and tidy
         self.figure.tight_layout()
 

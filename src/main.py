@@ -36,15 +36,15 @@ class Logger:
 
 
 class App:
-    def __init__(self, model, ask_verify=True, sample_size=1000, debug=True, **kwargs):
+    def __init__(self, model, depth, ask_verify=True, sample_size=1000, debug=True, **kwargs):
         self._debug = [debug]
         self.ops = Logger()
-        self.idx = 1
+        self.epoch = 0
         self.sample_size = sample_size
 
         self.AI = AI(model, ask_verify=ask_verify)
         self.AI.plot_model()
-        self.trainer = Trainer(Environment, self.AI)
+        self.trainer = Trainer(Environment, self.AI, depth=depth)
 
         self.plotwindow = ContinuousPlotWindow(fg="white", bg="black", geometry=(400, 400), dpi=100)
         self.plotwindow.set_xlabel("Epoch number", colour="white")
@@ -88,7 +88,7 @@ class App:
         _self.update(self.__dict__)
 
         _self.update({"trainer": self.trainer.__getstate__(),
-                      "losses": self.plotwindow.points[1]})
+                      "losses": self.plotwindow.points})
         _self.pop("plotwindow")
         _self.pop("AI")
 
@@ -104,19 +104,19 @@ class App:
         _self = pickle.loads(encoded_data)
         self.__dict__.update(_self)
 
-        self.trainer = Trainer(lambda: None, None)
+        self.trainer = Trainer(lambda: None, None, depth=None)
         self.trainer.__setstate__(_self["trainer"], **kwargs)
         self.AI = self.trainer.AI
 
         self.plotwindow.reset()
-        for x, y in enumerate(self.losses, start=1):
+        for x, y in zip(*self.losses):
             self.plotwindow.add(x, y)
 
         text = "filename=" + str(filename) + ", " + self.dict_to_str(kwargs)
         self.ops.append("[debug] load(%s)"%text)
 
     def set_main(self, function):
-        text = '\n"""'+getsource(function)+'\n"""'
+        text = '"""\n'+getsource(function)+'"""'
         self.ops.append("[debug] run(%s)"%text)
 
         self.plotwindow.set_main(function)
@@ -127,29 +127,29 @@ class App:
             sample_size = self.sample_size
         loss = self.trainer.test(sample_size, debug=debug)
         if sample_size == self.sample_size:
-            self.plotwindow.add(self.idx, loss)
-            self.idx += 1
+            self.plotwindow.add(self.epoch, loss)
         else:
             warn("This test isn't going to be plotted as sample_size != "+str(self.sample_size))
 
-        self.ops.append("[debug] test(sample_size=%s)[idx=%s] => %s"%(str(sample_size), str(self.idx-1), str(loss)))
+        self.ops.append("[debug] test(sample_size=%s)[epoch=%s] => %s"%(str(sample_size), str(self.epoch), str(loss)))
     
     def test_all(self, debug=False):
         loss = self.trainer.test_all(debug=debug)
         if self.sample_size == "all":
-            self.plotwindow.add(self.idx, loss)
-            self.idx += 1
+            self.plotwindow.add(self.epoch, loss)
         else:
             warn("This test isn't going to be plotted as \"all\" != "+str(self.sample_size))
 
-        self.ops.append("[debug] test_all()[idx=%s] => %s"%(str(self.idx-1), str(loss)))
+        self.ops.append("[debug] test_all()[epoch=%s] => %s"%(str(self.epoch), str(loss)))
 
-    def train(self, worlds=1, debug=False):
-        for world in range(worlds):
-            self.trainer.train(debug=debug)
-        self.trainer.flush()
+    def train(self, worlds=1, epochs=1, debug=False):
+        for epoch in range(epochs):
+            for world in range(worlds):
+                self.trainer.train(debug=debug)
+            self.trainer.flush()
+            self.epoch += 1
 
-        self.ops.append("[debug] train(worlds=%s)"%str(worlds))
+            self.ops.append("[debug] train(worlds=%s)"%str(worlds))
 
     def predict(self, *args, **kwargs):
         text = self.list_to_str(args)
@@ -160,9 +160,12 @@ class App:
 
         return self.AI.predict(*args, **kwargs)
 
+    def human_test(self, **kwargs):
+        self.trainer.human_test(**kwargs)
+
     def exit(self, msg):
         dir, filename, lineno = self.get_caller()
-        self.ops.append("exit(msg)[filename=%s, lineno=%s, dir=%s]"%(msg, filename, lineno, dir))
+        self.ops.append("exit(%s)[filename=%s, lineno=%s, dir=%s]"%(msg, filename, lineno, dir))
         self.ops.append(msg, force_output=True)
 
         exit()
@@ -192,29 +195,31 @@ if __name__ == "__main__":
     dense = [{"type": "flatten"},
              {"type": "dense", "size": 100},
              {"type": "dense", "size": 500},
-             {"type": "dense", "size": 250}]
+             {"type": "dense", "size": 500},
+             {"type": "dense", "size": 500}]
 
     conv = [{"type": "resize", "shape": (3, 3, 3, 1)},
-            {"type": "conv3d", "filters": 32, "filter": (3, 3, 2), "padding": "same"},
+            {"type": "conv3d", "filters": 64, "filter": (3, 3, 2), "padding": "same"},
             {"type": "flatten"},
-            {"type": "dense", "size": 250}]
+            {"type": "dense", "size": 500},
+            {"type": "dense", "size": 500}]
 
-    policy = [{"type": "dense", "size": 250},
+    policy = [{"type": "dense", "size": 500},
               {"type": "dense", "size": 50},
               {"type": "dense", "size": 9},
               {"type": "softmax", "name": "policy"}]
 
-    value = [{"type": "dense", "size": 250},
-             {"type": "dense", "size": 75},
+    value = [{"type": "dense", "size": 500},
+             {"type": "dense", "size": 100},
              {"type": "dense", "size": 10},
              {"type": "dense", "size": 1, "activation": "tanh", "name": "value"}]
 
     model = [{"type": "input", "shape": (3, 3, 3)},
              {"type": "duplicate"},
              [conv, dense],
-             {"type": "dense", "size": 500},
-             {"type": "dropout", "rate": 0.5},
-             {"type": "split", "sizes": (250, 250), "target_dim": 1},
+             {"type": "dense", "size": 1000},
+             #{"type": "dropout", "rate": 0.1},
+             {"type": "split", "sizes": (500, 500), "target_dim": 1},
              [policy, value]]
 
     @tf.function(experimental_compile=True)
@@ -226,12 +231,17 @@ if __name__ == "__main__":
         return tf.math.negative(tf.nn.softmax_cross_entropy_with_logits(pred, true))
 
     def main():
-        app.load(custom_objects=custom_objects, compile=True)
-        app.config(method="optimizer.learning_rate.assign", args=(1e-5, ), kwargs={})
-        for epoch in range(100):
-            app.train(worlds=5)
+        #app.load(custom_objects=custom_objects, compile=True)
+        #app.test(10, debug=True)
+        #app.test_all()
+        #app.human_test(depth=2, debug=True)
+        #exit()
+
+        #app.config(method="optimizer.learning_rate.assign", args=(1e-5, ), kwargs={})
+        for epoch in range(10):
+            app.train(worlds=10, epochs=10)
             app.test_all()#debug=True
-            if app.idx%5 == 0:
+            if app.epoch%5 == 0:
                 app.save()
         app.save()
         app.exit("End of main function.")
@@ -241,7 +251,7 @@ if __name__ == "__main__":
     custom_objects = {"loss_function_value": loss_function_value,
                       "loss_function_policy": loss_function_policy}
 
-    app = App(model, sample_size="all", ask_verify=False, debug=True)
-    app.compile(loss=loss_dict, learning_rate=1e-4)
+    app = App(model, depth=10, sample_size="all", ask_verify=False, debug=True)
+    app.compile(loss=loss_dict, learning_rate=1e-5)
     app.set_main(main)
     app.exit("End of code.")
