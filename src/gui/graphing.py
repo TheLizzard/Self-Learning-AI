@@ -111,21 +111,13 @@ class ScatterPlot(tk.Canvas):
         # Save the picture
         self.figure.savefig(filename, format=format, transparent=True)
         # Open the picture, resize it and display it
-        try:
-            print("Opening")
-            pilimage = Image.open(filename)
-            print("Opened")
-        except PermissionError as error:
-            print("Error")
-            raise error
+        pilimage = Image.open(filename)
         if self.resized:
             self.config(height=self.height, width=self.width)
             pilimage = pilimage.resize((self.width, self.height), Image.ANTIALIAS)
         self.image = ImageTk.PhotoImage(pilimage)
         self.create_image(self.width/2, self.height/2, image=self.image)
-        print("Closing")
         pilimage.close()
-        print("Closed")
 
     def set_xlabel(self, text=None, fontsize=None, colour=None):
         """

@@ -49,9 +49,7 @@ class ContinuousPlotWindow:
         while len(self.ops) > 0:
             op = self.ops.pop(0)
             op()
-        #print(len(self.points), self.plotted_points)
         if len(self.points[0]) != self.plotted_points:
-            print("Drawing")
             self.plotted_points = len(self.points[0])
             self.plot.reset()
             self.plot.add(*self.points, **self.kwargs)

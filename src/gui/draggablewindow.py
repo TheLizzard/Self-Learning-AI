@@ -48,8 +48,11 @@ class DraggableWindow(tk.Tk):
         root_width = super().winfo_width()
         root_height = super().winfo_height()
 
-        centre_x = root_width/2+super().winfo_rootx()
-        centre_y = root_height/2+super().winfo_rooty()
+        #centre_x = root_width/2+super().winfo_rootx()
+        #centre_y = root_height/2+super().winfo_rooty()
+
+        centre_x = super().winfo_pointerx()# - super().winfo_rootx()
+        centre_y = super().winfo_pointery()# - super().winfo_rooty()
 
         if screen_width/2 < centre_x:
             geometry = "+%i"%int(screen_width-root_width)

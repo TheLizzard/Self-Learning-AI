@@ -249,7 +249,7 @@ if __name__ == "__main__":
     custom_objects = {"loss_function_value": loss_function_value,
                       "loss_function_policy": loss_function_policy}
 
-    app = App(model, depth=10, sample_size="all", ask_verify=True, debug=True)
+    app = App(model, depth=10, sample_size="all", ask_verify=False, debug=True)
     app.compile(loss=loss_dict, learning_rate=1e-5)
     app.set_main(main)
     app.exit("End of code.")
