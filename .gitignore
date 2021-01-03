@@ -139,5 +139,6 @@ src/gui/threadsafe/widget.py
 src/gui/graphing_old.py
 
 src/saved/working/Old/
+src/saved/working/Best/
 
 *.tst

@@ -12,6 +12,7 @@ from .graphing import ScatterPlot
 class ContinuousPlotWindow:
     def __init__(self, fg="#000000", bg="#f0f0ed", geometry=(400, 400), dpi=100, exit_when_done=False):
         self.exit_when_done = exit_when_done
+        self.plotted_points = -1
         self.points = [[], []]
         self.kwargs = {}
         self.set_format()
@@ -48,9 +49,13 @@ class ContinuousPlotWindow:
         while len(self.ops) > 0:
             op = self.ops.pop(0)
             op()
-        self.plot.reset()
-        self.plot.add(*self.points, **self.kwargs)
-        self.plot.update()
+        #print(len(self.points), self.plotted_points)
+        if len(self.points[0]) != self.plotted_points:
+            print("Drawing")
+            self.plotted_points = len(self.points[0])
+            self.plot.reset()
+            self.plot.add(*self.points, **self.kwargs)
+            self.plot.update()
 
     # The caller can only call the methods bellow:
     def mainloop(self):
@@ -136,3 +141,12 @@ class ContinuousPlotWindow:
         Resizes the Widget to fit the width and height given.
         """
         self.ops.append(partial(self.plot.resize, width=width, height=height, dpi=dpi))
+
+    def grid_lines(self, show=True, colour=None, **kwargs):
+        """
+        If show is True it will display the grid lines.
+        kwargs include:
+            linewidth: float
+            linestyle: str    can be one of: {"-", "--", "-.", ":"}
+        """
+        self.plot.grid_lines(show=show, colour=colour, **kwargs)

@@ -382,7 +382,7 @@ class AICore:
             exit()
         print("\n"*3)
 
-    def plot_model(self, file="tmp/graph.png", dpi=300, shapes=True):
+    def plot_model(self, file="tmp/model.png", dpi=300, shapes=True):
         try:
             plot_model(self.model, to_file=file, expand_nested=True,
                        dpi=dpi, show_shapes=shapes)

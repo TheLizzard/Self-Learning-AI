@@ -14,10 +14,9 @@ _COLOURS = deepcopy(COLOURS)
 
 class ScatterPlot(tk.Canvas):
     def __init__(self, master, fg="#000000", bg="#f0f0ed", geometry=(400, 400), dpi=100):
+        self.resized = False
         self.width = geometry[0]
         self.height = geometry[1]
-        self.dpi = dpi
-        self.dpi_ratio = self.dpi/self.width
 
         self.xboundaries = [None, None]
         self.yboundaries = [None, None]
@@ -29,6 +28,8 @@ class ScatterPlot(tk.Canvas):
         self.set_title(text=None, fontsize=15, colour=fg)
         self.fg = fg
         self.bg = bg
+        self.show_grid_lines = False
+        self.grid_lines_kwargs = {}
 
         self.figure, self.axis = plt.subplots()
         self.axis.grid()
@@ -106,14 +107,25 @@ class ScatterPlot(tk.Canvas):
             format: str     # The type of the file
                             # Default = "png"
         """
-        self.config(height=self.height, width=self.width)
         self._config()
         # Save the picture
         self.figure.savefig(filename, format=format, transparent=True)
-        # Open the picture and display it
-        pilimage = Image.open(filename)
+        # Open the picture, resize it and display it
+        try:
+            print("Opening")
+            pilimage = Image.open(filename)
+            print("Opened")
+        except PermissionError as error:
+            print("Error")
+            raise error
+        if self.resized:
+            self.config(height=self.height, width=self.width)
+            pilimage = pilimage.resize((self.width, self.height), Image.ANTIALIAS)
         self.image = ImageTk.PhotoImage(pilimage)
         self.create_image(self.width/2, self.height/2, image=self.image)
+        print("Closing")
+        pilimage.close()
+        print("Closed")
 
     def set_xlabel(self, text=None, fontsize=None, colour=None):
         """
@@ -163,18 +175,27 @@ class ScatterPlot(tk.Canvas):
         """
         self.width = width
         self.height = height
-        if dpi is None:
-            self.dpi = self.dpi_ratio*width
-        else:
-            self.dpi = dpi
-        self.figure.set_size_inches(width/self.dpi, height/self.dpi)
-        self.figure.set_dpi(self.dpi)
+        self.resized = True
 
     def reset(self):
         """
         Removes all of the data points from the screen.
         """
         plt.cla()
+
+    def grid_lines(self, show=True, colour=None, **kwargs):
+        """
+        If show is True it will display the grid lines.
+        kwargs include:
+            linewidth: float
+            linestyle: str    can be one of: {"-", "--", "-.", ":"}
+        """
+        if (colour is None) and ("color" not in self.grid_lines_kwargs):
+            colour = self.fg
+        self.show_grid_lines = show
+        self.grid_lines_kwargs.update(kwargs)
+        if colour is not None:
+            self.grid_lines_kwargs.update({"color": colour})
 
     def _config(self):
         # Set all of the axis labels
@@ -197,7 +218,10 @@ class ScatterPlot(tk.Canvas):
         self.axis.set_xlim(*self.yboundaries)
 
         # Add grid lines
-        self.axis.grid(True, color=self.fg)
+        if self.show_grid_lines:
+            self.axis.grid(True, **self.grid_lines_kwargs)
+        else:
+            self.axis.grid(False)
 
         # Make everything neat and tidy
         self.figure.tight_layout()
@@ -212,6 +236,8 @@ if __name__ == "__main__":
 
     plot = ScatterPlot(root, fg="white", bg="black", geometry=(400, 400), dpi=100)
     plot.grid(row=1, column=1)
+    plot.resize(300, 300)
+    plot.grid_lines(show=True, colour="grey", linestyle="--")
 
     plot.set_xlabel("This is the x-axis label")
     plot.set_ylabel("This is the y-axis label")
@@ -233,10 +259,10 @@ if __name__ == "__main__":
         points[0].append(idx)
         points[1].append(idx**2)
         plot.reset()
-        plot.add(*points, size=10, colour="grey")
+        plot.add(*points, size=10, colour="red")
         plot.update()
         idx += 1
-        root.after(5000, mainloop)
+        root.after(2000, mainloop)
 
     root.protocol("WM_DELETE_WINDOW", destroy)
     root.after(0, mainloop)

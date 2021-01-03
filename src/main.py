@@ -36,8 +36,7 @@ class Logger:
 
 
 class App:
-    def __init__(self, model, depth, ask_verify=True, sample_size=1000, debug=True, **kwargs):
-        self._debug = [debug]
+    def __init__(self, model, depth, ask_verify=True, sample_size=1000, **kwargs):
         self.ops = Logger()
         self.epoch = 0
         self.sample_size = sample_size
@@ -47,21 +46,15 @@ class App:
         self.trainer = Trainer(Environment, self.AI, depth=depth)
 
         self.plotwindow = ContinuousPlotWindow(fg="white", bg="black", geometry=(400, 400), dpi=100)
-        self.plotwindow.set_xlabel("Epoch number", colour="white")
+        self.plotwindow.set_xlabel("Number of games played", colour="white")
         self.plotwindow.set_ylabel("Loss", colour="white")
         self.plotwindow.set_title("sample_size = %s"%str(self.sample_size), colour="white")
+        self.plotwindow.grid_lines(True, colour="grey", linestyle="--")
         self.plotwindow.set_format(colour="white", size=7)
+        self.plotwindow.resize(300, 300)
         self.plotwindow.xlim(left=0)
         self.plotwindow.ylim(left=0)
         self.plotwindow.exit_when_done = True
-
-    @property
-    def debug(self):
-        return self._debug[0]
-
-    @debug.setter
-    def debug(self, value):
-        self._debug[0] = value
 
     def set_seed(self, seed=42):
         _seed.set_seed(seed)
@@ -102,6 +95,7 @@ class App:
         with open(filename, "rb") as file:
             encoded_data = file.read()
         _self = pickle.loads(encoded_data)
+        losses = _self.pop("losses")
         self.__dict__.update(_self)
 
         self.trainer = Trainer(lambda: None, None, depth=None)
@@ -109,7 +103,7 @@ class App:
         self.AI = self.trainer.AI
 
         self.plotwindow.reset()
-        for x, y in zip(*self.losses):
+        for x, y in zip(*losses):
             self.plotwindow.add(x, y)
 
         text = "filename=" + str(filename) + ", " + self.dict_to_str(kwargs)
@@ -196,20 +190,22 @@ if __name__ == "__main__":
              {"type": "dense", "size": 100},
              {"type": "dense", "size": 500},
              {"type": "dense", "size": 500},
+             {"type": "dense", "size": 500},
              {"type": "dense", "size": 500}]
 
     conv = [{"type": "resize", "shape": (3, 3, 3, 1)},
             {"type": "conv3d", "filters": 64, "filter": (3, 3, 2), "padding": "same"},
+            {"type": "pool3d", "filter": (2, 2, 1), "padding": "same"},
             {"type": "flatten"},
             {"type": "dense", "size": 500},
             {"type": "dense", "size": 500}]
 
-    policy = [{"type": "dense", "size": 500},
-              {"type": "dense", "size": 50},
+    policy = [{"type": "dense", "size": 250},
+              {"type": "dense", "size": 100},
               {"type": "dense", "size": 9},
               {"type": "softmax", "name": "policy"}]
 
-    value = [{"type": "dense", "size": 500},
+    value = [{"type": "dense", "size": 250},
              {"type": "dense", "size": 100},
              {"type": "dense", "size": 10},
              {"type": "dense", "size": 1, "activation": "tanh", "name": "value"}]
@@ -218,8 +214,10 @@ if __name__ == "__main__":
              {"type": "duplicate"},
              [conv, dense],
              {"type": "dense", "size": 1000},
-             #{"type": "dropout", "rate": 0.1},
-             {"type": "split", "sizes": (500, 500), "target_dim": 1},
+             {"type": "dense", "size": 1000},
+             {"type": "dense", "size": 500},
+             {"type": "dropout", "rate": 0.1},
+             {"type": "split", "sizes": (250, 250), "target_dim": 1},
              [policy, value]]
 
     @tf.function(experimental_compile=True)
@@ -238,7 +236,7 @@ if __name__ == "__main__":
         #exit()
 
         #app.config(method="optimizer.learning_rate.assign", args=(1e-5, ), kwargs={})
-        for epoch in range(10):
+        for epoch in range(50):
             app.train(worlds=10, epochs=10)
             app.test_all()#debug=True
             if app.epoch%5 == 0:
