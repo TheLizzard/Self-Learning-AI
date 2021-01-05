@@ -19,16 +19,20 @@ from gui.plotwindow import ContinuousPlotWindow
 
 
 class Logger:
-    __slots__ = ("output", "items")
+    __slots__ = ("output", "items", "debug")
 
-    def __init__(self, output=True):
+    def __init__(self, output=True, debug=""):
         self.output = output
+        self.debug = debug
         self.items = []
 
     def append(self, item, force_output=False):
-        self.items.append(item)
-        if self.output or force_output:
-            print(item)
+        debug, obj = item
+        text = debug+"   "+str(obj)
+        self.items.append(text)
+        if debug in self.debug:
+            if self.output or force_output:
+                print(text)
 
     def dump(self, obj):
         padding = "=" * max(len(item) for item in self.items)
@@ -36,14 +40,15 @@ class Logger:
 
 
 class App:
-    def __init__(self, model, depth, ask_verify=True, sample_size=1000, **kwargs):
-        self.ops = Logger()
-        self.epoch = 0
+    def __init__(self, model, depth, ask_verify=True, sample_size=1000, train_last="all", debug=""):
         self.sample_size = sample_size
+        self.ops = Logger(debug)
+        self.debug = debug
+        self.epoch = 0
 
         self.AI = AI(model, ask_verify=ask_verify)
         self.AI.plot_model()
-        self.trainer = Trainer(Environment, self.AI, depth=depth)
+        self.trainer = Trainer(Environment, self.AI, depth=depth, train_last=train_last, debug=debug)
 
         self.plotwindow = ContinuousPlotWindow(fg="white", bg="black", geometry=(400, 400), dpi=100)
         self.plotwindow.set_xlabel("Number of games played", colour="white")
@@ -59,20 +64,20 @@ class App:
     def set_seed(self, seed=42):
         _seed.set_seed(seed)
 
-        self.ops.append("[debug] set_seed(%s)"%str(seed))
+        self.ops.append(("i", "[debug] set_seed(%s)"%str(seed)))
 
     def compile(self, **kwargs):
         self.trainer.compile(**kwargs)
 
         kwargs_text = self.dict_to_str(kwargs)
-        self.ops.append("[debug] compile(%s)" % kwargs_text)
+        self.ops.append(("i", "[debug] compile(%s)" % kwargs_text))
 
     def config(self, *args, **kwargs):
         text = self.list_to_str(args)
         if (len(args) != 0) and (len(kwargs) != 0):
             text += ", "
         text += self.dict_to_str(kwargs)
-        self.ops.append("[debug] config(%s)"%text)
+        self.ops.append(("i", "[debug] config(%s)"%text))
 
         return self.trainer.config(*args, **kwargs)
 
@@ -89,7 +94,7 @@ class App:
         with open(filename, "wb") as file:
             file.write(encoded_data)
 
-        self.ops.append("[debug] save(filename=%s)"%filename)
+        self.ops.append(("v", "[debug] save(filename=%s)"%filename))
 
     def load(self, filename="saved/autosave.pcl", **kwargs):
         with open(filename, "rb") as file:
@@ -107,50 +112,50 @@ class App:
             self.plotwindow.add(x, y)
 
         text = "filename=" + str(filename) + ", " + self.dict_to_str(kwargs)
-        self.ops.append("[debug] load(%s)"%text)
+        self.ops.append(("l", "[debug] load(%s)"%text))
 
     def set_main(self, function):
         text = '"""\n'+getsource(function)+'"""'
-        self.ops.append("[debug] run(%s)"%text)
+        self.ops.append(("s", "[debug] run(%s)"%text))
 
         self.plotwindow.set_main(function)
         self.plotwindow.mainloop()
 
-    def test(self, sample_size=None, debug=False):
+    def test(self, sample_size=None):
         if sample_size is None:
             sample_size = self.sample_size
-        loss = self.trainer.test(sample_size, debug=debug)
+        loss = self.trainer.test(sample_size)
         if sample_size == self.sample_size:
             self.plotwindow.add(self.epoch, loss)
         else:
             warn("This test isn't going to be plotted as sample_size != "+str(self.sample_size))
 
-        self.ops.append("[debug] test(sample_size=%s)[epoch=%s] => %s"%(str(sample_size), str(self.epoch), str(loss)))
+        self.ops.append(("b", "[debug] test(sample_size=%s)[epoch=%s] => %s"%(str(sample_size), str(self.epoch), str(loss))))
     
-    def test_all(self, debug=False):
-        loss = self.trainer.test_all(debug=debug)
+    def test_all(self):
+        loss = self.trainer.test_all()
         if self.sample_size == "all":
             self.plotwindow.add(self.epoch, loss)
         else:
             warn("This test isn't going to be plotted as \"all\" != "+str(self.sample_size))
 
-        self.ops.append("[debug] test_all()[epoch=%s] => %s"%(str(self.epoch), str(loss)))
+        self.ops.append(("b", "[debug] test_all()[epoch=%s] => %s"%(str(self.epoch), str(loss))))
 
-    def train(self, worlds=1, epochs=1, debug=False):
+    def train(self, worlds=1, epochs=1, **kwargs):
         for epoch in range(epochs):
             for world in range(worlds):
-                self.trainer.train(debug=debug)
-            self.trainer.flush()
+                self.trainer.train()
+            self.trainer.flush(**kwargs)
             self.epoch += 1
 
-            self.ops.append("[debug] train(worlds=%s)"%str(worlds))
+            self.ops.append(("t", "[debug] train(worlds=%s)"%str(worlds)))
 
     def predict(self, *args, **kwargs):
         text = self.list_to_str(args)
         if (len(args) != 0) and (len(kwargs) != 0):
             text += ", "
         text += self.dict_to_str(kwargs)
-        self.ops.append("[debug] predict(%s)"%text)
+        self.ops.append(("p", "[debug] predict(%s)"%text))
 
         return self.AI.predict(*args, **kwargs)
 
@@ -159,8 +164,8 @@ class App:
 
     def exit(self, msg):
         dir, filename, lineno = self.get_caller()
-        self.ops.append("exit(%s)[filename=%s, lineno=%s, dir=%s]"%(msg, filename, lineno, dir))
-        self.ops.append(msg, force_output=True)
+        self.ops.append(("s", "exit(%s)[filename=%s, lineno=%s, dir=%s]"%(msg, filename, lineno, dir)))
+        self.ops.append(("s", msg), force_output=True)
 
         exit()
 
@@ -230,15 +235,15 @@ if __name__ == "__main__":
 
     def main():
         #app.load(custom_objects=custom_objects, compile=True)
-        #app.test(10, debug=True)
-        #app.test_all()
-        #app.human_test(depth=2, debug=True)
+        #app.test(10)
+        app.test_all()
+        #app.human_test(depth=2)
         #exit()
 
         #app.config(method="optimizer.learning_rate.assign", args=(1e-5, ), kwargs={})
         for epoch in range(50):
-            app.train(worlds=10, epochs=10)
-            app.test_all()#debug=True
+            app.train(worlds=10, epochs=10, batch_size=10)
+            app.test_all()
             if app.epoch%5 == 0:
                 app.save()
         app.save()
@@ -249,7 +254,7 @@ if __name__ == "__main__":
     custom_objects = {"loss_function_value": loss_function_value,
                       "loss_function_policy": loss_function_policy}
 
-    app = App(model, depth=10, sample_size="all", ask_verify=False, debug=True)
+    app = App(model, depth=10, sample_size="all", ask_verify=False, debug="bspliv", train_last=2e5)
     app.compile(loss=loss_dict, learning_rate=1e-5)
     app.set_main(main)
     app.exit("End of code.")

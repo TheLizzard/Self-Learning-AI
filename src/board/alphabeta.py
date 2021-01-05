@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 def alphabeta_values(node, depth, eval):
     values = []
-    if node.game_over:
+    if depth == 0:
+        return eval(node)
+    elif node.game_over:
         if node.winner is None:
             value = 0
         else:
