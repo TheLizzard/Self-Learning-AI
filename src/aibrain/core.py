@@ -321,8 +321,9 @@ from keras.layers import Dense, Conv2D, Conv3D, Flatten, Input, Activation
 from keras.layers import Reshape, MaxPool3D, ZeroPadding2D, Dropout
 from keras.layers import Concatenate, GaussianNoise, MaxPool2D
 from keras.models import Model, load_model
-from keras.utils import plot_model
-from keras.optimizers import Adam
+from keras.utils.all_utils import plot_model
+from keras.optimizers import adam_v2
+Adam = adam_v2.Adam
 
 import numpy as np
 import tempfile
@@ -330,7 +331,10 @@ import pickle
 import copy
 import sys
 
-from .customlayers import SplitLayer, DuplicateLayer
+try:
+    from .customlayers import SplitLayer, DuplicateLayer
+except ImportError:
+    from customlayers import SplitLayer, DuplicateLayer
 
 
 class AICore:
@@ -540,3 +544,48 @@ class AICore:
 
     def deepcopy(self):
         return copy.deepcopy(self)
+
+
+if __name__ == "__main__":
+    from keras.utils.all_utils import to_categorical
+    from keras.datasets import mnist
+    import numpy as np
+
+    # Read the mnist dataset
+    (x_train, y_train), (x_test, y_test) = mnist.load_data()
+
+    x_train = x_train/255 # Normalise the data
+    x_test = x_test/255   # Normalise the data
+
+    y_train = to_categorical(y_train, 10) # Convert it into 1 hot
+    y_test = to_categorical(y_test, 10)   # Convert it into 1 hot
+
+    model = [{"type": "input", "shape": (28, 28)},
+             {"type": "resize", "shape": (28, 28, 1)},
+             {"type": "conv", "filters": 32, "filter": (3, 3), "activation": "relu"},
+             {"type": "pool", "filter": (2, 2)}, # Do a PoolMax2D
+             {"type": "conv", "filters": 16, "filter": (3, 3), "activation": "relu"},
+             {"type": "pool", "filter": (2, 2)}, # Do a PoolMax2D
+             {"type": "flatten"},
+             {"type": "dropout", "rate": 0.5},
+             {"type": "dense", "size": 10},
+             {"type": "softmax"}] # Apply softmax as the data is categorical
+
+    core = AICore(model)
+    core.compile(loss="categorical_crossentropy", learning_rate=0.001, metrics=["acc"])
+
+    try:
+        # Train the neural net on the data
+        core.train(x_train, y_train, batch_size=100, epochs=15,
+                   validation_data=(x_test, y_test))
+    except KeyboardInterrupt as error:
+        # If the user presses Ctrl+c: evaluate the model quickly and exit
+        pass
+
+    # Evaluate the model
+    score = core.model.evaluate(x_test, y_test, verbose=1)
+    print("Loss:", score[0])
+    print("Accuracy %s%%"%(str(score[1]*100+0.05/10)[:5])) # Round the accuracy
+
+    # Save the model
+    core.save("autosave_example1.pcl")
