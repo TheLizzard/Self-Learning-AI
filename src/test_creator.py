@@ -1,4 +1,5 @@
 import pickle
+import random
 
 from board.environment import Environment
 
@@ -24,7 +25,7 @@ def _test_creator(env):
             env.push(actions)
             value = _test_creator(env)
             best_value = max(value, best_value)
-            #RESULTS.update({env.deepcopy(): value})
+            RESULTS.update({env.deepcopy(): value})
             env.pop()
         return best_value
     else:
@@ -33,30 +34,37 @@ def _test_creator(env):
             env.push(move)
             value = _test_creator(env)
             best_value = min(value, best_value)
-            #RESULTS.update({env.deepcopy(): value})
+            RESULTS.update({env.deepcopy(): value})
             env.pop()
         return best_value
 
 
-## All of the ending positions get saved to "tests.tst"
-if __name__ == "__main__":
-    from constants.set_seed import set_seed
-    set_seed(42)
-
-    import random
-
-    # Calculate the data
+def create_full_test():
     test_creator()
     _list = list(RESULTS.items())
-
+    print("full test size =", len(_list))
     # Shuffle the data
     random.shuffle(_list)
-    print(len(_list))
-
-    # Take only the first 1000 items of the data
-    _list = _list[:1000]
-    print(_list[:3])
-
-    # Save the data to a file
-    with open("tests.tst", "wb") as file:
+    # Save to "full_test.tst"
+    with open("full_test.tst", "wb") as file:
         file.write(pickle.dumps(_list))
+
+def create_test_sample(sample):
+    with open("full_test.tst", "rb") as file:
+        _list = pickle.loads(file.read())
+    print("full test size =", len(_list))
+    # Shuffle the data
+    random.shuffle(_list)
+    # Take the sample
+    _list = _list[:sample]
+    # Save to "test.tst"
+    with open("test.tst", "wb") as file:
+        file.write(pickle.dumps(_list))
+
+
+## All of the ending positions get saved to "tests.tst"
+if __name__ == "__main__":
+    from constants.seed import set_seed
+    set_seed(42)
+
+    create_test_sample(sample=2000)
